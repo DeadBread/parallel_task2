@@ -19,8 +19,8 @@ Solver::Solver(const Grid& _grid, double _T, int _TSteps):
 }
 
 double Solver::getAnalyticalSolutionForPoint(const Point& point, double t) {
-	point.Print();
-	printf("Lx=%d, Ly=%d, Lz=%d\n", grid.XSize(), grid.YSize(), grid.ZSize());
+	// point.Print();
+	// printf("Lx=%d, Ly=%d, Lz=%d\n", grid.XSize(), grid.YSize(), grid.ZSize());
 	double solution = 
 		sin( 3 * M_PI * point.x / grid.XSize() ) *
 		sin( 3 * M_PI * point.y / grid.YSize() ) *
@@ -47,16 +47,18 @@ double Solver::calcLaplasian(int x, int y, int z, double t, const TDArray& UnVal
 	double result = 0;
 
 	//For border conditions
-	double yRightIndex = y % (grid.YSize() - 1) + 1;
-	double zRightIndex = z % (grid.ZSize() - 1) + 1;
+	// double yRightIndex = y % (grid.YSize() - 1) + 1;
+	// double zRightIndex = z % (grid.ZSize() - 1) + 1;
 
+	double yRightIndex = y < (grid.YSize() - 1) ? y + 1 : 1;
+	double zRightIndex = z < (grid.ZSize() - 1) ? z + 1 : 1;
 
 	// cout << "calculating laplasian for " << x << " " << y << " " << z << endl;
 
 	double middlePart = 2 * UnValues.GetValue(x, y, z);
-	result += (UnValues.GetValue(x-1, y, z ) + UnValues.GetValue(x+1, y, z ) - middlePart) / grid.XSize();
-	result += (UnValues.GetValue(x, y-1, z ) + UnValues.GetValue(x, yRightIndex, z ) - middlePart) / grid.YSize();
-	result += (UnValues.GetValue(x, y, z-1 ) + UnValues.GetValue(x, y, zRightIndex ) - middlePart) / grid.ZSize();
+	result += (UnValues.GetValue(x-1, y, z ) + UnValues.GetValue(x+1, y, z ) - middlePart) / pow(grid.Xh(), 2);
+	result += (UnValues.GetValue(x, y-1, z ) + UnValues.GetValue(x, yRightIndex, z ) - middlePart) / pow(grid.Yh(), 2);
+	result += (UnValues.GetValue(x, y, z-1 ) + UnValues.GetValue(x, y, zRightIndex ) - middlePart) / pow(grid.Zh(), 2);
 	return result;
 }
 
@@ -65,34 +67,34 @@ double Solver::approximateFunctionInPoint(double laplasian, double UNValue, doub
 }
 
 void Solver::calcUNPlusOne(double time) {
+	UN->Print();
 	for (int i = 1; i < grid.XSize() - 1; i++) {
 		// For border conditions laplacian is calculated in a specific way
 		for (int j = 1; j < grid.YSize(); j++) {
 			for (int k = 1; k < grid.ZSize(); k++) {
 				// cout << "cbefore laplasian " << i << " " << j << " " << k << endl;
 
-
 				double laplasian = calcLaplasian(i, j, k, time, *UN);
-				UNPlusOne->Value(i,j,k) = approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );
+				UNPlusOne->Value(i,j,k) = laplasian;//approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );
 			}
 		}
 	}
 	// Border conditions for X will be satisfied already as we set memory to zeros
 
-	//Border conditions for Y
-	for (double i = 1; i < grid.XSize() - 1; i++) {
-		for (double k = 1; k < grid.ZSize() - 1; k++) {	
-			UNPlusOne->Value(i, 0, k) = UNPlusOne->GetValue(i, grid.YSize() - 1, k );
-		}
-	}
+	// //Border conditions for Y
+	// for (double i = 1; i < grid.XSize() - 1; i++) {
+	// 	for (double k = 1; k < grid.ZSize() - 1; k++) {	
+	// 		UNPlusOne->Value(i, 0, k) = UNPlusOne->GetValue(i, grid.YSize() - 1, k );
+	// 	}
+	// }
 
-	//Border conditions for Z
-	for (double i = 1; i < grid.XSize() - 1; i++) {
-		//This time Y axis is complete, so we go all the way through this axis
-		for (double j = 1; j < grid.YSize(); j++) {	
-			UNPlusOne->Value(i, j, 0) = UNPlusOne->GetValue(i, j, grid.ZSize() - 1 );
-		}
-	}
+	// //Border conditions for Z
+	// for (double i = 1; i < grid.XSize() - 1; i++) {
+	// 	//This time Y axis is complete, so we go all the way through this axis
+	// 	for (double j = 1; j < grid.YSize(); j++) {	
+	// 		UNPlusOne->Value(i, j, 0) = UNPlusOne->GetValue(i, j, grid.ZSize() - 1 );
+	// 	}
+	// }
 }
 
 void Solver::printAndCheck(double time) {
@@ -110,13 +112,16 @@ void Solver::Solve() {
 	getAnalyticalSolution(0, *UNMinOne);
 	getAnalyticalSolution(tau, *UN);
 
-	UNMinOne->Print();
-	return;
+	// printf("tau=%f\n", tau);
+
 	cout << "starting approximation";
 
 	for(double time = tau * 2; time < T; time += tau) {
 		// Step
 		calcUNPlusOne(time);
+
+		UNPlusOne->Print();
+		return;
 
 		// Print and check
 		printAndCheck(time);

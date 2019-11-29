@@ -34,7 +34,7 @@ TDArray::TDArray(const Grid& dimensionSizes) :
 	data = new double[GetSize()];
 }
 
-void TDArray::Print() {
+void TDArray::Print() const {
 	for (int i = 0; i < xSize; i++) {
 		// For border conditions laplacian is calculated in a specific way
 		for (int j = 0; j < ySize; j++) {

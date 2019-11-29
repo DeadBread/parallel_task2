@@ -56,7 +56,7 @@ public:
 	double GetMax() const;
 	double GetMean() const;
 
-	void Print();
+	void Print() const;
 
 	void Clean();
 
