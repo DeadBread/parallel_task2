@@ -4,11 +4,11 @@
 
 class Solver {
 public:
-	Solver(const Point& _borders, const Grid& _grid);
-	void PrintOut(double timeLimit, double timeStep);
+	Solver(const Grid& _grid, double _T, int _TSteps);
+	
+	void Solve();
 
 private:
-	Point borders;
 	Grid grid;
 
 	TDArray* UNMinOne;
@@ -24,9 +24,9 @@ private:
 	double getAnalyticalSolutionForPoint(const Point& point, double t);
 	void getAnalyticalSolution(double t, TDArray& result);
 
-	void solve(TDArray& matrix);
+	void printAndCheck(double time);
 
-	double calcLaplasian(const Point& point, double t, const TDArray& UnValues);
-	double approximateFunctionInPoint(double laplasian, double UN, double UNMinusOne, double tau);
+	double calcLaplasian(int x, int y, int z, double t, const TDArray& UnValues);
+	double approximateFunctionInPoint(double laplasian, double UN, double UNMinusOne);
 	void calcUNPlusOne(double time);
 };

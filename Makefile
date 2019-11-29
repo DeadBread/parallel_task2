@@ -13,13 +13,13 @@ EXECUTABLE=Solver
 all: $(OBJECTS)
 	$(CC) $(OBJECTS) -o $(EXECUTABLE)
 
-solver.o:
+solver.o: $(SOLVER)
 	$(CC) $(CFLAGS) $(SOLVER) -o $@
 
-matrix.o:
+matrix.o: $(MATRIX)
 	$(CC) $(CFLAGS) $(MATRIX) -o $@
 
-main.o:
+main.o: $(MAIN)
 	$(CC) $(CFLAGS) $(MAIN) -o $@
 
 clean:

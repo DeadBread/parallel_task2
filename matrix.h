@@ -5,25 +5,31 @@ struct Point
 	double x;
 	double y;
 	double z;
+
+	void Print() const {
+		printf("x=%f, y=%f, z=%f\n", x, y, z);
+	}
 };
 
 class Grid
 {
-	int XSize() { return XGridParts; }
-	int YSize() { return YGridParts; }
-	int ZSize() { return ZGridParts; }
+public:
+	Grid(int x, int y, int z, const Point& _borders):
+		XGridParts(x), 
+		YGridParts(y),
+		ZGridParts(z),
+		borders(_borders) 
+	{}
 
-	int Xh() { return borders.x / XGridParts; }
-	int Yh() { return borders.y / YGridParts; }
-	int Zh() { return borders.z / ZGridParts; }
+	int XSize() const { return XGridParts; }
+	int YSize() const { return YGridParts; }
+	int ZSize() const { return ZGridParts; }
 
-	Point GetPointByIndex(int x, int y, int z) {
-		access(x * Hx() <= borders.x);
-		access(y * Hy() <= borders.y);
-		access(z * Hz() <= borders.z);
+	double Xh() const  { return borders.x / XGridParts; }
+	double Yh() const { return borders.y / YGridParts; }
+	double Zh() const { return borders.z / ZGridParts; }
 
-		return {x * Hx(), y * Yh(), z*Zh()};
-	}
+	Point GetPointByIndex(int x, int y, int z) const;
 private:
 	int XGridParts;
 	int YGridParts;
@@ -36,26 +42,26 @@ public:
 	explicit TDArray(const Grid& dimensionSizes);
 	~TDArray();
 	// matrix data size in doubles
-	int GetSize() {
+	int GetSize() const {
 		return xSize * ySize * zSize; 
 	}
 
 	// RW access to values
-	double& Value(const Point& point);
+	double& Value(int x, int y, int z);
 	// ReadOnle access to values
-	double GetValue(const Point& point) {
-		return Value(point);
+	double GetValue(int x, int y, int z) const {
+		return const_cast<TDArray*>(this)->Value(x,y,z);
 	}
 
-	double GetMax();
-	double GetMean();
+	double GetMax() const;
+	double GetMean() const;
 
-	void Clean() {
-		memset(data, GetSize() * sizeof(double));
-	}
+	void Print();
+
+	void Clean();
 
 	// -= operator
-	void subtract(const TDArray& matrix);
+	void Subtract(const TDArray& matrix);
 private:
 	int xSize;
 	int ySize;
