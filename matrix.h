@@ -15,25 +15,29 @@ class Grid
 {
 public:
 	Grid(int x, int y, int z, const Point& _borders):
-		XGridParts(x), 
-		YGridParts(y),
-		ZGridParts(z),
+		XGridPointsCount(x), 
+		YGridPointsCount(y),
+		ZGridPointsCount(z),
 		borders(_borders) 
 	{}
 
-	int XSize() const { return XGridParts; }
-	int YSize() const { return YGridParts; }
-	int ZSize() const { return ZGridParts; }
+	int XSize() const { return XGridPointsCount; }
+	int YSize() const { return YGridPointsCount; }
+	int ZSize() const { return ZGridPointsCount; }
 
-	double Xh() const  { return borders.x / XGridParts; }
-	double Yh() const { return borders.y / YGridParts; }
-	double Zh() const { return borders.z / ZGridParts; }
+	double Lx() const { return borders.x; }
+	double Ly() const { return borders.y; }
+	double Lz() const { return borders.z; }
+
+	double Xh() const { return borders.x / (XGridPointsCount - 1); }
+	double Yh() const { return borders.y / (YGridPointsCount - 1); }
+	double Zh() const { return borders.z / (ZGridPointsCount - 1); }
 
 	Point GetPointByIndex(int x, int y, int z) const;
 private:
-	int XGridParts;
-	int YGridParts;
-	int ZGridParts;
+	int XGridPointsCount;
+	int YGridPointsCount;
+	int ZGridPointsCount;
 	Point borders;
 };
 
