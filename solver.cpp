@@ -14,7 +14,7 @@ Solver::Solver(const Grid& _grid, double _T, int _TSteps):
 		T(_T), 
 		TSteps(_TSteps)
 {
-	tau = T / TSteps;
+	tau = T / (TSteps - 1);
 	UNMinOne = new TDArray(grid);
 	UN = new TDArray(grid);
 	UNPlusOne = new TDArray(grid);
@@ -23,12 +23,13 @@ Solver::Solver(const Grid& _grid, double _T, int _TSteps):
 double Solver::getAnalyticalSolutionForPoint(const Point& point, double t) {
 
 #ifdef SIMPLE_BORDERS
+	double t_multiplier = M_PI*sqrt(9/pow(grid.Lx(),2) + 9/pow(grid.Ly(), 2) +1/pow(grid.Lz(), 2));
 	//SIMPLE BORDERS
 	double solution = 
 		sin( M_PI * point.x / grid.Lx() ) *
 		sin( M_PI * point.y / grid.Ly() ) *
 		sin( M_PI * point.z / grid.Lz() ) * 
-		cos( 3 * t );
+		cos( t_multiplier * t );
 #else
 	double solution = 
 		sin( 3 * M_PI * point.x / grid.XSize() ) *
