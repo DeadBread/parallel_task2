@@ -19,18 +19,21 @@ Solver::Solver(const Grid& _grid, double _T, int _TSteps):
 }
 
 double Solver::getAnalyticalSolutionForPoint(const Point& point, double t) {
-	// double solution = 
-	// 	sin( 3 * M_PI * point.x / grid.XSize() ) *
-	// 	sin( 3 * M_PI * point.y / grid.YSize() ) *
-	// 	sin( M_PI * point.z / grid.ZSize() ) * 
-	// 	cos( 4 * (t + M_PI) );
 
+#ifdef SIMPLE_BORDERS
 	//SIMPLE BORDERS
 	double solution = 
 		sin( M_PI * point.x / grid.Lx() ) *
 		sin( M_PI * point.y / grid.Ly() ) *
 		sin( M_PI * point.z / grid.Lz() ) * 
-		cos( 3 * t );
+		cos( 3 * t )
+#else
+	double solution = 
+		sin( 3 * M_PI * point.x / grid.XSize() ) *
+		sin( 3 * M_PI * point.y / grid.YSize() ) *
+		sin( M_PI * point.z / grid.ZSize() ) * 
+		cos( 4 * (t + M_PI) );
+#endif
 	return solution;
 }
 
@@ -52,13 +55,15 @@ void Solver::getAnalyticalSolution(double t, TDArray& result) {
 double Solver::calcLaplasian(int x, int y, int z, double t, const TDArray& UnValues) {
 	double result = 0;
 
-	//For border conditions
-	// double yRightIndex = y % (grid.YSize() - 1) + 1;
-	// double zRightIndex = z % (grid.ZSize() - 1) + 1;
-
+#ifdef SIMPLE_BORDERS
 	//SIMPLE BORDERS
 	double yRightIndex = y + 1;
 	double zRightIndex = z + 1;
+#else
+	//For border conditions
+	double yRightIndex = y % (grid.YSize() - 1) + 1;
+	double zRightIndex = z % (grid.ZSize() - 1) + 1;
+#endif
 
 	// cout << "calculating laplasian for " << x << " " << y << " " << z << endl;
 
@@ -78,8 +83,8 @@ void Solver::calcUNPlusOne(double time) {
 	// UN->Print();
 	for (int i = 1; i < grid.XSize() - 1; i++) {
 		// For border conditions laplacian is calculated in a specific way
-		for (int j = 1; j < grid.YSize() - 1; j++) {
-			for (int k = 1; k < grid.ZSize() - 1; k++) {
+		for (int j = 1; j < grid.YSize(); j++) {
+			for (int k = 1; k < grid.ZSize(); k++) {
 				// cout << "cbefore laplasian " << i << " " << j << " " << k << endl;
 
 				double laplasian = calcLaplasian(i, j, k, time, *UN);
@@ -90,21 +95,22 @@ void Solver::calcUNPlusOne(double time) {
 	// Border conditions for X will be satisfied already as we set memory to zeros
 
 	//SIMPLE BORDERS
+#ifndef SIMPLE_BORDERS
+	//Border conditions for Y
+	for (double i = 1; i < grid.XSize() - 1; i++) {
+		for (double k = 1; k < grid.ZSize() - 1; k++) {	
+			UNPlusOne->Value(i, 0, k) = UNPlusOne->GetValue(i, grid.YSize() - 1, k );
+		}
+	}
 
-	// //Border conditions for Y
-	// for (double i = 1; i < grid.XSize() - 1; i++) {
-	// 	for (double k = 1; k < grid.ZSize() - 1; k++) {	
-	// 		UNPlusOne->Value(i, 0, k) = UNPlusOne->GetValue(i, grid.YSize() - 1, k );
-	// 	}
-	// }
-
-	// //Border conditions for Z
-	// for (double i = 1; i < grid.XSize() - 1; i++) {
-	// 	//This time Y axis is complete, so we go all the way through this axis
-	// 	for (double j = 1; j < grid.YSize(); j++) {	
-	// 		UNPlusOne->Value(i, j, 0) = UNPlusOne->GetValue(i, j, grid.ZSize() - 1 );
-	// 	}
-	// }
+	//Border conditions for Z
+	for (double i = 1; i < grid.XSize() - 1; i++) {
+		//This time Y axis is complete, so we go all the way through this axis
+		for (double j = 1; j < grid.YSize(); j++) {	
+			UNPlusOne->Value(i, j, 0) = UNPlusOne->GetValue(i, j, grid.ZSize() - 1 );
+		}
+	}
+#endif
 }
 
 void Solver::printAndCheck(double time) {
