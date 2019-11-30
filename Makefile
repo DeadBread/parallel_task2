@@ -10,6 +10,7 @@ EXECUTABLE=Solver
 
 .PHONY: all clean
 
+
 all: $(OBJECTS)
 	$(CC) $(OBJECTS) -o $(EXECUTABLE)
 
