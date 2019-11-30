@@ -39,9 +39,10 @@ void Solver::getAnalyticalSolution(double t, TDArray& result) {
 		for (int j = 0; j < grid.YSize(); j++) {
 			for (int k = 0; k < grid.ZSize(); k++) {
 				Point point = grid.GetPointByIndex(i, j, k);
-				point.Print();
+				// point.Print();
+				// printf("%f\n", t);
 				result.Value(i, j, k) = getAnalyticalSolutionForPoint(point, t);
-				printf("%f\n", result.Value(i, j, k) );
+				// printf("%f\n", result.Value(i, j, k) );
 			}
 		}
 	}
@@ -121,19 +122,18 @@ void Solver::Solve() {
 	getAnalyticalSolution(0, *UNMinOne);
 	getAnalyticalSolution(tau, *UN);
 
-	UNMinOne->Print();
-	return;
+	// UNMinOne->Print();
+	// return;
 
 	// printf("tau=%f\n", tau);
 
 	cout << "starting approximation";
 
-	for(double time = tau * 2; time < T; time += tau) {
+	for(int i = 0; i < TSteps; i++) {
+
+		double time = tau * i;
 		// Step
 		calcUNPlusOne(time);
-
-		// UNPlusOne->Print();
-		// return;
 
 		// Print and check
 		printAndCheck(time);

@@ -12,6 +12,8 @@ Point Grid::GetPointByIndex(int x, int y, int z) const {
 	assert(y * Yh() <= borders.y);
 	assert(z * Zh() <= borders.z);
 
+	// printf("%d, %f\n", x, Xh());
+
 	Point result = {x * Xh(), y * Yh(), z*Zh()};
 	// result.Print();
 	return result;
