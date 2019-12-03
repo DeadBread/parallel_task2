@@ -1,6 +1,6 @@
 SHELL = /bin/sh
-CC=g++
-CFLAGS=-std=c++11 -c -Wall
+CC=mpicxx
+CFLAGS= -c -Wall
 MAIN=main.cpp
 SOLVER=solver.cpp 
 MATRIX=matrix.cpp

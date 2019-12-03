@@ -4,7 +4,7 @@
 
 class Solver {
 public:
-	Solver(const Grid& _grid, double _T, int _TSteps);
+	Solver(const Grid& _grid, int local_sizes[], double _T, int _TSteps, const MPI_Comm& _comm);
 	
 	void Solve();
 
@@ -14,6 +14,8 @@ private:
 	TDArray* UNMinOne;
 	TDArray* UN;
 	TDArray* UNPlusOne;
+
+	const MPI_Comm& comm;
 
 	double T;
 	int TSteps;
@@ -25,6 +27,11 @@ private:
 	void getAnalyticalSolution(double t, TDArray& result);
 
 	void printAndCheck(double time);
+
+	void updateUNBorders();
+	void fillOwnBorders();
+	void fillAlianBorders();
+
 
 	double calcLaplasian(int x, int y, int z, double t, const TDArray& UnValues);
 	double approximateFunctionInPoint(double laplasian, double UN, double UNMinusOne);

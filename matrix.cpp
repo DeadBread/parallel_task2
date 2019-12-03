@@ -6,7 +6,7 @@
 
 #include "matrix.h"
 
-
+//Local coordinates, blobal point!
 Point Grid::GetPointByIndex(int x, int y, int z) const {
 	assert(x * Xh() <= borders.x);
 	assert(y * Yh() <= borders.y);
@@ -15,40 +15,45 @@ Point Grid::GetPointByIndex(int x, int y, int z) const {
 	// printf("%d, %f\n", x, Xh());
 
 	Point result = {x * Xh(), y * Yh(), z*Zh()};
+	result += shift;
 	// result.Print();
 	return result;
 }
 
-const char* get_error_message(int one, int two) {
-	char* msg = new char[100];
-	sprintf(msg, "%d %d \n", one, two);
-	return msg;
+bool Grid::IsPointOnBorder(int x, int y, int z) const {
+	const Point point = GetPointByIndex(x, y, z);
+	return point.x == 0 || point.y == 0 || point.z == 0 ||
+			point.x == borders.x ||
+			point.y == borders.y ||
+			point.z == borders.z;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-TDArray::TDArray(const Grid& dimensionSizes) :
-	xSize(dimensionSizes.XSize()),
-	ySize(dimensionSizes.YSize()), 
-	zSize(dimensionSizes.ZSize())
+TDArray::TDArray(int local_sizes[]) :
+	xSize(local_sizes[0]),
+	ySize(local_sizes[1]), 
+	zSize(local_sizes[2])
 {
-	//this shouls fill data with zeros, right?
-	data = new double[GetSize()];
+	//this should fill data with zeros, right?
+	data = new double[GetSize()]();
 }
 
-void TDArray::Print() const {
+void TDArray::Print(int rank) const {
+	char str[3000];
+	sprintf(str, "rank = %d\n", rank);
 	for (int i = 0; i < xSize; i++) {
 		// For border conditions laplacian is calculated in a specific way
 		for (int j = 0; j < ySize; j++) {
 			for (int k = 0; k < zSize; k++) {
-				printf("%f ", GetValue(i, j, k));
+				sprintf(str, "%f ", GetValue(i, j, k));
 			}
-			printf("\n");
+			sprintf(str, "\n");
 		}
-		printf("\n");
+		sprintf(str, "\n");
 	}
+	printf("%s\n", str);
 }
-
 
 TDArray::~TDArray() {
 	delete[] data;
