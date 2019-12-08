@@ -4,7 +4,7 @@
 
 class Solver {
 public:
-	Solver(const Grid& _grid, int local_sizes[], double _T, int _TSteps, const MPI_Comm& _comm);
+	Solver(const Grid& _grid, int local_sizes[], double _T, int _TSteps, const MPI_Comm& _comm, int rank);
 	
 	void Solve();
 
@@ -16,6 +16,7 @@ private:
 	TDArray* UNPlusOne;
 
 	const MPI_Comm& comm;
+	int rank;
 
 	double T;
 	int TSteps;

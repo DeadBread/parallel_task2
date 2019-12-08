@@ -1,5 +1,6 @@
 #pragma once
 #include <stdio.h>
+#include <mpi.h>
 
 struct Point
 {
@@ -50,10 +51,11 @@ private:
 };
 
 class BorderMatrix {
+public:
 	explicit BorderMatrix(int x, int y):
 		xSize(x), ySize(y) 
 	{
-		data = new double(GetSize)();
+		data = new double[GetSize()]();
 	}
 	~BorderMatrix() {
 		delete[] data;
@@ -64,23 +66,24 @@ class BorderMatrix {
 	}
 
 	double& Value(int x, int y) {
-		return x * ySize + y;
+		return data[x * ySize + y];
 	}
 	double GetValue(int x, int y) const {
-		return const_cast<TDArray*>(this)->Value(x,y);
+		return const_cast<BorderMatrix*>(this)->Value(x,y);
 	}
 
-	void exchange(int from, int two, comst MPI_Comm& comm) {
+	void Exchange(int from, int to, const MPI_Comm& comm) {
 		MPI_Status status;
-		MPI_SENDRECV_REPLACE(data, GetSize(), MPI_DOUBLE, to,
-    		0, from, 0, comm, status);
+		MPI_Sendrecv_replace(data, GetSize(), MPI_DOUBLE, to,
+    		0, from, 0, comm, &status);
 	}
 
+private:
 	int xSize;
 	int ySize;
 
 	double* data;
-}
+};
 
 class TDArray {
 public:

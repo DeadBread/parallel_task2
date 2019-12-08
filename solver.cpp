@@ -9,13 +9,14 @@ using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Solver::Solver(const Grid& _grid, int padded_local_sizes[], double _T, int _TSteps, const MPI_Comm& _comm):
+Solver::Solver(const Grid& _grid, int padded_local_sizes[], double _T, int _TSteps, const MPI_Comm& _comm, int _rank):
 		grid(_grid), 
 		T(_T), 
 		TSteps(_TSteps),
-		comm(_comm)
+		comm(_comm), 
+		rank(_rank)
 {
-	tau = T / (TSteps - 1);
+	tau = T / (TSteps);
 	UNMinOne = new TDArray(padded_local_sizes);
 	UN = new TDArray(padded_local_sizes);
 	UNPlusOne = new TDArray(padded_local_sizes);
@@ -42,9 +43,11 @@ double Solver::getAnalyticalSolutionForPoint(const Point& point, double t) {
 }
 
 void Solver::getAnalyticalSolution(double t, TDArray& result) {
+	// cout << "ysize=" << result.YSize() << endl;
 	for (int i = 1; i < result.XSize() - 1; i++) {
 		for (int j = 1; j < result.XSize() - 1; j++) {
 			for (int k = 1; k < result.ZSize() - 1; k++) {
+				// cout << "rank " << rank << ", " << i << " " << j << " " << k <<endl;
 				Point point = grid.GetPointByIndex(i, j, k);
 				// point.Print();
 				// printf("%f\n", t);
@@ -110,15 +113,15 @@ void Solver::updateUNBorders() {
 
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
-			YUp.Value(j, k) = UN->Value(i, UN->YSize()-2, k);
-			YDown.Value(j, k) = UN->Value(i, 1, k);
+			YUp.Value(i, k) = UN->Value(i, UN->YSize()-2, k);
+			YDown.Value(i, k) = UN->Value(i, 1, k);
 		}
 	}
 
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int j = 1; j < UN->YSize() - 1; ++j) {
-			ZUp.Value(j, k) = UN->Value(i, j, UN->ZSize()-2);
-			ZDown.Value(j, k) = UN->Value(i, j, 1);
+			ZUp.Value(i, j) = UN->Value(i, j, UN->ZSize()-2);
+			ZDown.Value(i, j) = UN->Value(i, j, 1);
 		}
 	}
 
@@ -150,15 +153,15 @@ void Solver::updateUNBorders() {
 
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
-			UN->Value(i, UN->YSize()-1, k) = YUp.Value(j, k);
-			UN->Value(i, 0, k) = YDown.Value(j, k);
+			UN->Value(i, UN->YSize()-1, k) = YUp.Value(i, k);
+			UN->Value(i, 0, k) = YDown.Value(i, k);
 		}
 	}
 
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int j = 1; j < UN->YSize() - 1; ++j) {
-			UN->Value(i, j, UN->ZSize()-1) = ZUp.Value(j, k);
-			UN->Value(i, j, 0) = ZDown.Value(j, k);
+			UN->Value(i, j, UN->ZSize()-1) = ZUp.Value(i, j);
+			UN->Value(i, j, 0) = ZDown.Value(i, j);
 		}
 	}
 }
@@ -175,10 +178,13 @@ void Solver::calcUNPlusOne(double time) {
 			for (int k = 1; k < UNPlusOne->ZSize() - 1; k++) {
 				// cout << "cbefore laplasian " << i << " " << j << " " << k << endl;
 				//simple borders
+
 				if (grid.IsPointOnBorder(i,j,k)) { 
 					UNPlusOne->Value(i,j,k) = 0;
 				} else {
-					double laplasian = calcLaplasian(i, j, k, time, *UN);
+					// Point point = grid.GetPointByIndex(i-1,j-1,k-1);
+
+					double laplasian = calcLaplasian(i,j,k, time, *UN);
 					UNPlusOne->Value(i,j,k) = approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );					
 				}
 			}
@@ -222,7 +228,8 @@ void Solver::printAndCheck(double time) {
 	TDArray anal(sizes);
 	getAnalyticalSolution(time, anal);
 	anal.Subtract(*UNPlusOne);
-	cout << "time " << time << ", maxError " << anal.GetMax() << ", mean error " << anal.GetMean() << endl;
+
+	cout << "rank" << rank << " time " << time << ", maxError " << anal.GetMax() << ", mean error " << anal.GetMean() << endl;
 }
 
 //Works correctly if all the data is prepared correctly
@@ -238,14 +245,17 @@ void Solver::Solve() {
 
 	// printf("tau=%f\n", tau);
 
-	cout << "starting approximation";
+	// cout << "starting approximation";
 
 	for(int i = 0; i < TSteps; i++) {
 
 		double time = tau * i;
 		// Step
-		updateUNBorders();
 		calcUNPlusOne(time);
+
+		// UNPlusOne->Print(rank);
+
+		// return;
 
 		// Print and check
 		printAndCheck(time);

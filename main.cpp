@@ -63,16 +63,17 @@ int main(int argc, char *argv[]) {
 	// printf("dimensions: %d, %d, %d\n", dimensions[0], dimensions[1], dimensions[2]);
 	int periods[3] = {0,0,0};
 	MPI_Comm MPI_CART_COMM;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
     MPI_Cart_create(MPI_COMM_WORLD, 3, dimensions, periods, true, &MPI_CART_COMM);
     MPI_Cart_coords(MPI_CART_COMM, rank, 3, coords);
 
     Point shift = create_shift(coords, dimensions, N);
-	Grid grid = Grid(N,local_sizes, border, shift);
+    Grid grid(N, local_sizes, shift, border);
+    Solver solver(grid, local_sizes, 0.002, 20, MPI_CART_COMM, rank);
+
+    solver.Solve();
 
 	TDArray array(local_sizes);
-
 
     MPI_Finalize();
 	// Solver solver(grid, 0.002, 20);
