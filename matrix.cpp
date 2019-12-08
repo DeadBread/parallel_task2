@@ -64,6 +64,20 @@ bool Grid::IsPointOnBorder(int x, int y, int z) const {
 			point.y == borders.y ||
 			point.z == borders.z;
 }
+////////////////////////////////////////////////////////////////////////////////////
+
+void BorderMatrix::Print(int rank) {
+	stringstream str;
+	str << "rank " << rank << endl;
+	for (int i = 0; i < xSize; i++) {
+		for (int j = 0; j < ySize; j++) {
+			str << GetValue(i, j) << " ";
+		}
+		str << "\n";
+	}
+	cout << str.str() << endl;
+	// printf("%d\n", rank);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -120,11 +134,11 @@ void TDArray::Subtract(const TDArray& matrix) {
 	}
 }
 
-double TDArray::GetMax() const {
-	double max = data[0];
+double TDArray::GetAbsMax() const {
+	double max = abs(data[0]);
 	for(int i = 1; i < GetSize(); i++){
-		if (data[i] > max) {
-			max = data[i];
+		if (abs(data[i]) > max) {
+			max = abs(data[i]);
 		}
 	}
 	return max;

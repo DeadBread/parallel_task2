@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	
 	int dimensions[3] = {0,0,0};
-    int coords[] = {0, 0, 0};
+    int coords[] = {0,0,0};
 	MPI_Dims_create(comm_size, 3, dimensions);
 
 	//padded!
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 
     Point shift = create_shift(coords, dimensions, N);
     Grid grid(N, local_sizes, shift, border);
-    Solver solver(grid, local_sizes, 0.002, 20, MPI_CART_COMM, rank);
+    Solver solver(grid, local_sizes, 0.002, 11, MPI_CART_COMM, rank);
 
     solver.Solve();
 

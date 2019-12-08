@@ -16,7 +16,7 @@ Solver::Solver(const Grid& _grid, int padded_local_sizes[], double _T, int _TSte
 		comm(_comm), 
 		rank(_rank)
 {
-	tau = T / (TSteps);
+	tau = T / (TSteps - 1);
 	UNMinOne = new TDArray(padded_local_sizes);
 	UN = new TDArray(padded_local_sizes);
 	UNPlusOne = new TDArray(padded_local_sizes);
@@ -77,9 +77,9 @@ double Solver::calcLaplasian(int x, int y, int z, double t, const TDArray& UnVal
 
 	double middlePart = 2 * UnValues.GetValue(x, y, z);
 
-	result += (UnValues.GetValue(x-1, y, z ) + UnValues.GetValue(x+1, y, z ) - middlePart) / pow(grid.Xh(), 2);
-	result += (UnValues.GetValue(x, y-1, z ) + UnValues.GetValue(x, yRightIndex, z ) - middlePart) / pow(grid.Yh(), 2);
-	result += (UnValues.GetValue(x, y, z-1 ) + UnValues.GetValue(x, y, zRightIndex ) - middlePart) / pow(grid.Zh(), 2);
+	result += (UnValues.GetValue(x-1, y, z ) + UnValues.GetValue(x+1, y, z ) - middlePart);// / pow(grid.Xh(), 2);
+	// result += (UnValues.GetValue(x, y-1, z ) + UnValues.GetValue(x, yRightIndex, z ) - middlePart) / pow(grid.Yh(), 2);
+	// result += (UnValues.GetValue(x, y, z-1 ) + UnValues.GetValue(x, y, zRightIndex ) - middlePart) / pow(grid.Zh(), 2);
 	return result;
 }
 
@@ -106,22 +106,22 @@ void Solver::updateUNBorders() {
 	//filling border matrices
 	for (int j = 1; j < UN->YSize() - 1; ++j) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
-			XUp.Value(j, k) = UN->Value(UN->XSize()-2, j, k);
-			XDown.Value(j, k) = UN->Value(1, j, k);
+			XUp.Value(j-1, k-1) = UN->Value(UN->XSize()-2, j, k);
+			XDown.Value(j-1, k-1) = UN->Value(1, j, k);
 		}
 	}
 
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
-			YUp.Value(i, k) = UN->Value(i, UN->YSize()-2, k);
-			YDown.Value(i, k) = UN->Value(i, 1, k);
+			YUp.Value(i-1, k-1) = UN->Value(i, UN->YSize()-2, k);
+			YDown.Value(i-1, k-1) = UN->Value(i, 1, k);
 		}
 	}
 
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int j = 1; j < UN->YSize() - 1; ++j) {
-			ZUp.Value(i, j) = UN->Value(i, j, UN->ZSize()-2);
-			ZDown.Value(i, j) = UN->Value(i, j, 1);
+			ZUp.Value(i-1, j-1) = UN->Value(i, j, UN->ZSize()-2);
+			ZDown.Value(i-1, j-1) = UN->Value(i, j, 1);
 		}
 	}
 
@@ -129,7 +129,19 @@ void Solver::updateUNBorders() {
 	int to = -1;
 
 	MPI_Cart_shift(comm, 0, -1, &from, &to);
+
+	// if (from == 0) {
+	// 	XDown.Print(from);
+	// }
+
+	printf("%d - echangeing\n", rank);
     XDown.Exchange(from, to, comm);
+    printf("%d - echanged\n", rank);
+
+ //  	if (from == 0) {
+	// 	XDown.Print(to);
+	// }
+
     MPI_Cart_shift(comm, 0, 1, &from, &to);
     XUp.Exchange(from, to, comm);
 
@@ -143,25 +155,27 @@ void Solver::updateUNBorders() {
     MPI_Cart_shift(comm, 2, 1, &from, &to);
     ZUp.Exchange(from, to, comm);
 
+    // if (rank == )
+
 	//padding tensor
     for (int j = 1; j < UN->YSize() - 1; ++j) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
-			UN->Value(UN->XSize()-1, j, k) = XUp.Value(j, k);
-			UN->Value(0, j, k) = XDown.Value(j, k);
+			UN->Value(0, j, k) = XUp.Value(j-1, k-1);
+			UN->Value(UN->XSize()-1, j, k) = XDown.Value(j-1, k-1);
 		}
 	}
 
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
-			UN->Value(i, UN->YSize()-1, k) = YUp.Value(i, k);
-			UN->Value(i, 0, k) = YDown.Value(i, k);
+			UN->Value(i, 0, k) = YUp.Value(i-1, k-1);
+			UN->Value(i, UN->YSize()-1, k) = YDown.Value(i-1, k-1);
 		}
 	}
 
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int j = 1; j < UN->YSize() - 1; ++j) {
-			UN->Value(i, j, UN->ZSize()-1) = ZUp.Value(i, j);
-			UN->Value(i, j, 0) = ZDown.Value(i, j);
+			UN->Value(i, j, 0) = ZUp.Value(i-1, j-1);
+			UN->Value(i, j, UN->ZSize()-1) = ZDown.Value(i-1, j-1);
 		}
 	}
 }
@@ -185,7 +199,7 @@ void Solver::calcUNPlusOne(double time) {
 					// Point point = grid.GetPointByIndex(i-1,j-1,k-1);
 
 					double laplasian = calcLaplasian(i,j,k, time, *UN);
-					UNPlusOne->Value(i,j,k) = approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );					
+					UNPlusOne->Value(i,j,k) = laplasian;//approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );					
 				}
 			}
 		}
@@ -227,9 +241,19 @@ void Solver::printAndCheck(double time) {
 	int sizes[3] = {UNPlusOne->XSize(), UNPlusOne->YSize(), UNPlusOne->ZSize()};
 	TDArray anal(sizes);
 	getAnalyticalSolution(time, anal);
-	anal.Subtract(*UNPlusOne);
+	// anal.Subtract(*UNPlusOne);
 
-	cout << "rank" << rank << " time " << time << ", maxError " << anal.GetMax() << ", mean error " << anal.GetMean() << endl;
+	int comm_size = -1;
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
+    double max_error = UNPlusOne->Value(3, 3, 3);
+    double recv_max_error = -1;
+    MPI_Reduce(&max_error, &recv_max_error, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    if (rank == 0) {
+    	recv_max_error = max(max_error, recv_max_error);
+		cout << "rank" << rank << " time " << time << ", maxError " << max_error << endl;
+    }
 }
 
 //Works correctly if all the data is prepared correctly
@@ -247,11 +271,13 @@ void Solver::Solve() {
 
 	// cout << "starting approximation";
 
-	for(int i = 0; i < TSteps; i++) {
+	for(int i = 2; i < TSteps; i++) {
 
 		double time = tau * i;
 		// Step
 		calcUNPlusOne(time);
+
+		updateUNBorders();
 
 		// UNPlusOne->Print(rank);
 

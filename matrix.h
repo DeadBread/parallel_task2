@@ -66,6 +66,8 @@ public:
 	}
 
 	double& Value(int x, int y) {
+		int index = x * ySize + y;
+		assert(index < GetSize());
 		return data[x * ySize + y];
 	}
 	double GetValue(int x, int y) const {
@@ -78,6 +80,7 @@ public:
     		0, from, 0, comm, &status);
 	}
 
+	void Print(int rank);
 private:
 	int xSize;
 	int ySize;
@@ -105,7 +108,7 @@ public:
 	int YSize() { return ySize; }
 	int ZSize() { return zSize; }
 
-	double GetMax() const;
+	double GetAbsMax() const;
 	double GetMean() const;
 
 	void Print(int rank) const;
