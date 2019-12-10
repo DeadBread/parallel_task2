@@ -26,19 +26,20 @@ Solver::Solver(const Grid& _grid, int padded_local_sizes[], double _T, int _TSte
 double Solver::getAnalyticalSolutionForPoint(const Point& point, double t) {
 
 #ifdef SIMPLE_BORDERS
-	double t_multiplier = M_PI*sqrt(9/pow(grid.Lx(),2) + 9/pow(grid.Ly(), 2) +1/pow(grid.Lz(), 2));
 	//SIMPLE BORDERS
+	double t_multiplier = M_PI*sqrt(1/pow(grid.Lx(),2) + 1/pow(grid.Ly(), 2) +1/pow(grid.Lz(), 2));
 	double solution = 
 		sin( M_PI * point.x / grid.Lx() ) *
 		sin( M_PI * point.y / grid.Ly() ) *
 		sin( M_PI * point.z / grid.Lz() ) * 
 		cos( t_multiplier * t );
 #else
+	double t_multiplier = M_PI*sqrt(9/pow(grid.Lx(),2) + 9/pow(grid.Ly(), 2) +1/pow(grid.Lz(), 2));
 	double solution = 
 		sin( 3 * M_PI * point.x / grid.GetN() ) *
 		sin( 3 * M_PI * point.y / grid.GetN() ) *
 		sin( M_PI * point.z / grid.GetN() ) * 
-		cos( 4 * (t + M_PI) );
+		cos( t_multiplier * t);
 #endif
 	return solution;
 }
@@ -78,9 +79,9 @@ double Solver::calcLaplasian(int x, int y, int z, double t, const TDArray& UnVal
 
 	double middlePart = 2*UnValues.GetValue(x, y, z);
 
-	result += (UnValues.GetValue(x-1, y, z ) + UnValues.GetValue(x+1, y, z ))/2; //- middlePart); // / pow(grid.Xh(), 2);
-	// result += (UnValues.GetValue(x, y-1, z ) + UnValues.GetValue(x, yRightIndex, z ) - middlePart) / pow(grid.Yh(), 2);
-	// result += (UnValues.GetValue(x, y, z-1 ) + UnValues.GetValue(x, y, zRightIndex ) - middlePart) / pow(grid.Zh(), 2);
+	result += (UnValues.GetValue(x-1, y, z ) + UnValues.GetValue(x+1, y, z )- middlePart) / pow(grid.Xh(), 2);
+	result += (UnValues.GetValue(x, y-1, z ) + UnValues.GetValue(x, yRightIndex, z ) - middlePart) / pow(grid.Yh(), 2);
+	result += (UnValues.GetValue(x, y, z-1 ) + UnValues.GetValue(x, y, zRightIndex ) - middlePart) / pow(grid.Zh(), 2);
 	return result;
 }
 
@@ -171,10 +172,10 @@ void Solver::updateUNBorders() {
     //     MPI_Barrier(MPI_COMM_WORLD);
     // }
 
-	if (rank == 0) {
-		XUp.Print(rank);
-		XDown.Print(rank);
-	}
+	// if (rank == 0) {
+	// 	XUp.Print(rank);
+	// 	XDown.Print(rank);
+	// }
 
 	//padding tensor
     for (int j = 1; j < UN->YSize() - 1; ++j) {
@@ -197,13 +198,12 @@ void Solver::updateUNBorders() {
 			UN->Value(i, j, UN->ZSize()-1) = ZDown.Value(i-1, j-1);
 		}
 	}
-	if (rank == 4) {
-		UN->Print(rank);
-	}
+	// if (rank == 4) {
+	// 	UN->Print(rank);
+	// }
 }
 
 void Solver::calcUNPlusOne(double time) {
-	// UN->Print();
 
 #ifdef SIMPLE_BORDERS
 
@@ -218,10 +218,10 @@ void Solver::calcUNPlusOne(double time) {
 				if (grid.IsPointOnBorder(i,j,k)) { 
 					UNPlusOne->Value(i,j,k) = 0;
 				} else {
-					// Point point = grid.GetPointByIndex(i-1,j-1,k-1);
+					Point point = grid.GetPointByIndex(i-1,j-1,k-1);
 
 					double laplasian = calcLaplasian(i,j,k, time, *UN);
-					UNPlusOne->Value(i,j,k) = laplasian;//approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );					
+					UNPlusOne->Value(i,j,k) = approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );					
 				}
 			}
 		}
@@ -263,12 +263,12 @@ void Solver::printAndCheck(double time) {
 	int sizes[3] = {UNPlusOne->XSize(), UNPlusOne->YSize(), UNPlusOne->ZSize()};
 	TDArray anal(sizes);
 	getAnalyticalSolution(time, anal);
-	// anal.Subtract(*UNPlusOne);
+	anal.Subtract(*UNPlusOne);
 
 	int comm_size = -1;
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-    double max_error = UNPlusOne->Value(3, 3, 3);
+    double max_error = anal.GetAbsMax();
     double recv_max_error = -1;
     MPI_Reduce(&max_error, &recv_max_error, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
@@ -281,12 +281,22 @@ void Solver::printAndCheck(double time) {
 //Works correctly if all the data is prepared correctly
 void Solver::Solve() {
 
+    int comm_size = -1;
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
 	assert(TSteps > 2);
 	//Calculating analytical solution for first two time steps
 	getAnalyticalSolution(0, *UNMinOne);
 	getAnalyticalSolution(tau, *UN);
 
-	// UNMinOne->Print();
+	// UNMinOne->Print(rank);
+
+	// for(int j = 0; j < comm_size; j++) {
+ //        if (rank == j) {
+	// 		UNMinOne->Print(rank);
+ //        }
+ //        MPI_Barrier(MPI_COMM_WORLD);
+ //   	}
 	// return;
 
 	// printf("tau=%f\n", tau);
@@ -297,15 +307,25 @@ void Solver::Solve() {
 
 		double time = tau * i;
 		// Step
-		calcUNPlusOne(time);
 
 		updateUNBorders();
 
-		return;
-
-		// UNPlusOne->Print(rank);
-
 		// return;
+
+		calcUNPlusOne(time);
+
+	  //   if (i == 2) {
+	  //   	for(int j = 0; j < comm_size; j++) {
+	  //           if (rank == j) {
+			// 		UNPlusOne->Print(rank);
+	  //           }
+	  //           MPI_Barrier(MPI_COMM_WORLD);
+	  //      	}
+
+			// return;
+	  //   }
+
+
 
 		// Print and check
 		printAndCheck(time);
