@@ -104,7 +104,7 @@ void TDArray::Print(int rank) const {
 		}
 		str << "\n";
 	}
-	std::cout << str.str() << endl;;
+	std::cout << str.str() << endl;
 	// printf("%d\n", rank);
 }
 

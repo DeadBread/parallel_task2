@@ -61,6 +61,10 @@ public:
 		delete[] data;
 	}
 
+	void Clean() {
+		memset(data, 0, GetSize() * sizeof(double));
+	}
+
 	int GetSize() const {
 		return xSize * ySize; 
 	}
@@ -68,7 +72,7 @@ public:
 	double& Value(int x, int y) {
 		int index = x * ySize + y;
 		assert(index < GetSize());
-		return data[x * ySize + y];
+		return data[index];
 	}
 	double GetValue(int x, int y) const {
 		return const_cast<BorderMatrix*>(this)->Value(x,y);
@@ -78,6 +82,10 @@ public:
 		MPI_Status status;
 		MPI_Sendrecv_replace(data, GetSize(), MPI_DOUBLE, to,
     		0, from, 0, comm, &status);
+		if (from == MPI_PROC_NULL) {
+			Clean();
+			return;
+		}
 	}
 
 	void Print(int rank);

@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cmath>
 #include "solver.h"
+#include <sstream>
 
 using namespace std;
 
@@ -73,11 +74,11 @@ double Solver::calcLaplasian(int x, int y, int z, double t, const TDArray& UnVal
 	double zRightIndex = z % (grid.GetN() - 1) + 1;
 #endif
 
-	// cout << "calculating laplasian for " << x << " " << y << " " << z << endl;
+	// cout << "Hs" << grid.Xh() << " " << grid.Yh() << " " << grid.Zh() << endl;
 
-	double middlePart = 2 * UnValues.GetValue(x, y, z);
+	double middlePart = 2*UnValues.GetValue(x, y, z);
 
-	result += (UnValues.GetValue(x-1, y, z ) + UnValues.GetValue(x+1, y, z ) - middlePart);// / pow(grid.Xh(), 2);
+	result += (UnValues.GetValue(x-1, y, z ) + UnValues.GetValue(x+1, y, z ))/2; //- middlePart); // / pow(grid.Xh(), 2);
 	// result += (UnValues.GetValue(x, y-1, z ) + UnValues.GetValue(x, yRightIndex, z ) - middlePart) / pow(grid.Yh(), 2);
 	// result += (UnValues.GetValue(x, y, z-1 ) + UnValues.GetValue(x, y, zRightIndex ) - middlePart) / pow(grid.Zh(), 2);
 	return result;
@@ -103,6 +104,10 @@ void Solver::updateUNBorders() {
 	BorderMatrix ZUp(xs, ys);
 	BorderMatrix ZDown(xs, ys);
 
+	// if (rank == 0) {
+	// 	UN->Print(rank);
+	// }
+
 	//filling border matrices
 	for (int j = 1; j < UN->YSize() - 1; ++j) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
@@ -125,37 +130,51 @@ void Solver::updateUNBorders() {
 		}
 	}
 
+	// if (to == 0) {
+	// 	XUp.Print(rank);
+	// 	XDown.Print(rank);
+	// }
+
 	int from = -1;
 	int to = -1;
 
+	stringstream ss;
+	ss<<rank << endl;
+
 	MPI_Cart_shift(comm, 0, -1, &from, &to);
-
-	// if (from == 0) {
-	// 	XDown.Print(from);
-	// }
-
-	printf("%d - echangeing\n", rank);
+	ss << "XDown, from " << from << "to" << to << endl;
     XDown.Exchange(from, to, comm);
-    printf("%d - echanged\n", rank);
-
- //  	if (from == 0) {
-	// 	XDown.Print(to);
-	// }
-
     MPI_Cart_shift(comm, 0, 1, &from, &to);
+	ss << "XUp, from " << from << " to" << to<< endl;
     XUp.Exchange(from, to, comm);
 
     MPI_Cart_shift(comm, 1, -1, &from, &to);
+	ss << "YDown, from " << from << "to" << to << endl;
     YDown.Exchange(from, to, comm);
     MPI_Cart_shift(comm, 1, 1, &from, &to);
+	ss << "YUp, from " << from << " to" << to<< endl;
     YUp.Exchange(from, to, comm);
 
     MPI_Cart_shift(comm, 2, -1, &from, &to);
+	ss << "ZDown, from " << from << "to" << to << endl;
     ZDown.Exchange(from, to, comm);
     MPI_Cart_shift(comm, 2, 1, &from, &to);
+	ss << "ZUp, from " << from << " to" << to<< endl;
     ZUp.Exchange(from, to, comm);
 
-    // if (rank == )
+    // int comm_size = -1;
+    // MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    // for(int i = 0; i < comm_size; i++) {
+    //     if (rank == i) {
+    //         std::cout << ss.str() << std::endl;
+    //     }
+    //     MPI_Barrier(MPI_COMM_WORLD);
+    // }
+
+	if (rank == 0) {
+		XUp.Print(rank);
+		XDown.Print(rank);
+	}
 
 	//padding tensor
     for (int j = 1; j < UN->YSize() - 1; ++j) {
@@ -177,6 +196,9 @@ void Solver::updateUNBorders() {
 			UN->Value(i, j, 0) = ZUp.Value(i-1, j-1);
 			UN->Value(i, j, UN->ZSize()-1) = ZDown.Value(i-1, j-1);
 		}
+	}
+	if (rank == 4) {
+		UN->Print(rank);
 	}
 }
 
@@ -278,6 +300,8 @@ void Solver::Solve() {
 		calcUNPlusOne(time);
 
 		updateUNBorders();
+
+		return;
 
 		// UNPlusOne->Print(rank);
 
