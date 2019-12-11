@@ -6,11 +6,15 @@
 
 using namespace std;
 
-#define SIMPLE_BORDERS
+// #define SIMPLE_BORDERS
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Solver::Solver(const Grid& _grid, int padded_local_sizes[], double _T, int _TSteps, const MPI_Comm& _comm, int _rank):
+Solver::Solver(const Grid& _grid, int padded_local_sizes[], 
+	const int* _coords, const int* _dimensions,
+	double _T, int _TSteps, const MPI_Comm& _comm, int _rank):
+		coords(_coords),
+		dimensions(_dimensions),
 		grid(_grid), 
 		T(_T), 
 		TSteps(_TSteps),
@@ -34,12 +38,12 @@ double Solver::getAnalyticalSolutionForPoint(const Point& point, double t) {
 		sin( M_PI * point.z / grid.Lz() ) * 
 		cos( t_multiplier * t );
 #else
-	double t_multiplier = M_PI*sqrt(9/pow(grid.Lx(),2) + 9/pow(grid.Ly(), 2) +1/pow(grid.Lz(), 2));
+	double t_multiplier = M_PI*sqrt(9/pow(grid.Lx(),2) + 4/pow(grid.Ly(), 2) + 4/pow(grid.Lz(), 2));
 	double solution = 
 		sin( 3 * M_PI * point.x / grid.GetN() ) *
-		sin( 3 * M_PI * point.y / grid.GetN() ) *
-		sin( M_PI * point.z / grid.GetN() ) * 
-		cos( t_multiplier * t);
+		sin( 2 * M_PI * point.y / grid.GetN() ) *
+		sin( 2 * M_PI * point.z / grid.GetN() ) * 
+		cos( t_multiplier * t + 4 * M_PI );
 #endif
 	return solution;
 }
@@ -64,16 +68,16 @@ void Solver::getAnalyticalSolution(double t, TDArray& result) {
 double Solver::calcLaplasian(int x, int y, int z, double t, const TDArray& UnValues) {
 	double result = 0;
 
-#ifdef SIMPLE_BORDERS
+// #ifdef SIMPLE_BORDERS
 	//SIMPLE BORDERS
 
 	double yRightIndex = y + 1;
 	double zRightIndex = z + 1;
-#else
-	//For border conditions
-	double yRightIndex = y % (grid.GetN() - 1) + 1;
-	double zRightIndex = z % (grid.GetN() - 1) + 1;
-#endif
+// #else
+// 	//For border conditions
+// 	double yRightIndex = y % (grid.GetN() - 1) + 1;
+// 	double zRightIndex = z % (grid.GetN() - 1) + 1;
+// #endif
 
 	// cout << "Hs" << grid.Xh() << " " << grid.Yh() << " " << grid.Zh() << endl;
 
@@ -105,10 +109,6 @@ void Solver::updateUNBorders() {
 	BorderMatrix ZUp(xs, ys);
 	BorderMatrix ZDown(xs, ys);
 
-	// if (rank == 0) {
-	// 	UN->Print(rank);
-	// }
-
 	//filling border matrices
 	for (int j = 1; j < UN->YSize() - 1; ++j) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
@@ -130,11 +130,6 @@ void Solver::updateUNBorders() {
 			ZDown.Value(i-1, j-1) = UN->Value(i, j, 1);
 		}
 	}
-
-	// if (to == 0) {
-	// 	XUp.Print(rank);
-	// 	XDown.Print(rank);
-	// }
 
 	int from = -1;
 	int to = -1;
@@ -163,20 +158,6 @@ void Solver::updateUNBorders() {
 	ss << "ZUp, from " << from << " to" << to<< endl;
     ZUp.Exchange(from, to, comm);
 
-    // int comm_size = -1;
-    // MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-    // for(int i = 0; i < comm_size; i++) {
-    //     if (rank == i) {
-    //         std::cout << ss.str() << std::endl;
-    //     }
-    //     MPI_Barrier(MPI_COMM_WORLD);
-    // }
-
-	// if (rank == 0) {
-	// 	XUp.Print(rank);
-	// 	XDown.Print(rank);
-	// }
-
 	//padding tensor
     for (int j = 1; j < UN->YSize() - 1; ++j) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
@@ -198,10 +179,139 @@ void Solver::updateUNBorders() {
 			UN->Value(i, j, UN->ZSize()-1) = ZDown.Value(i-1, j-1);
 		}
 	}
-	// if (rank == 4) {
-	// 	UN->Print(rank);
-	// }
 }
+
+void Solver::updateBorderConditions(double time) {
+	//y borders
+
+	int xs = UNPlusOne->XSize() - 2;
+	int ys = UNPlusOne->YSize() - 2;
+	int zs = UNPlusOne->ZSize() - 2;
+
+	BorderMatrix YBorder(xs, zs);
+	// BorderMatrix YDown(xs, zs);
+
+	BorderMatrix ZBorder(xs, ys);
+	// BorderMatrix ZDown(xs, ys);
+
+	//lower border
+	if (coords[1] == 0) {
+		//sending second y-slice
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int k = 1; k < UN->ZSize() - 1; ++k) {
+				YBorder.Value(i-1, k-1) = UN->Value(i, 2, k);
+			}
+		}
+		int dst_coords[3] = {coords[0], dimensions[1] - 1, coords[2]};
+		int upper_border_rank = -1;
+		MPI_Cart_rank(comm, dst_coords, &upper_border_rank);
+
+		//sending U[:,1,:]
+		YBorder.Send(upper_border_rank, comm);
+
+		//recieving I[:,0,:] = U[:,n,:]
+		YBorder.Recv(upper_border_rank, comm);
+
+		//filling in border
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int k = 1; k < UN->ZSize() - 1; ++k) {
+				UNPlusOne->Value(i, 1, k) = YBorder.Value(i-1, k-1);
+			}
+		}
+	}
+
+	//upper border
+	if (coords[1] == dimensions[1] - 1) {
+		int dst_coords[3] = {coords[0], 0, coords[2]};
+		int lower_border_rank = -1;
+		MPI_Cart_rank(comm, dst_coords, &lower_border_rank);
+
+		YBorder.Recv(lower_border_rank, comm);
+
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int k = 1; k < UN->ZSize() - 1; ++k) {
+				UN->Value(i, UN->YSize() - 1, k) = YBorder.Value(i-1, k-1);
+				// calculation laplasian on the border
+				int j = UN->YSize() - 2;
+				double laplasian = calcLaplasian(i,j , k, time, *UN);
+				UNPlusOne->Value(i,j,k) = approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );	
+				// updating buffer
+				YBorder.Value(i-1, k-1) = UNPlusOne->GetValue(i,j,k);
+			}
+		}
+
+		YBorder.Send(lower_border_rank, comm);
+	}
+
+
+	//lower border
+	if (coords[2] == 0) {
+		//sending second y-slice
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int j = 1; j < UN->YSize() - 1; ++j) {
+				ZBorder.Value(i-1, j-1) = UN->Value(i, j, 2);
+			}
+		}
+		int dst_coords[3] = {coords[0], coords[1], dimensions[2]-1};
+		int upper_border_rank = -1;
+		MPI_Cart_rank(comm, dst_coords, &upper_border_rank);
+
+		//sending U[:,1,:]
+		ZBorder.Send(upper_border_rank, comm);
+
+		//recieving I[:,0,:] = U[:,n,:]
+		ZBorder.Recv(upper_border_rank, comm);
+
+		//filling in border
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int j = 1; j < UN->YSize() - 1; ++j) {
+				UNPlusOne->Value(i, j, 1) = ZBorder.Value(i-1, j-1);
+			}
+		}
+	}
+
+	//upper border
+	if (coords[2] == dimensions[2] - 1) {
+		int dst_coords[3] = {coords[0],coords[1], 0};
+		int lower_border_rank = -1;
+		MPI_Cart_rank(comm, dst_coords, &lower_border_rank);
+
+		ZBorder.Recv(lower_border_rank, comm);
+
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int j = 1; j < UN->YSize() - 1; ++j) {
+				UN->Value(i, j, UN->ZSize() - 1) = ZBorder.Value(i-1, j-1);
+				// calculation laplasian on the border
+				int k = UN->ZSize() - 2;
+				double laplasian = calcLaplasian(i,j,k, time, *UN);
+				UNPlusOne->Value(i,j,k) = approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );	
+				// updating buffer
+				ZBorder.Value(i-1, j-1) = UNPlusOne->GetValue(i,j,k);
+			}
+		}
+
+		ZBorder.Send(lower_border_rank, comm);
+	}
+
+	//setting X borders to zero
+
+	if (coords[0] == 0) {
+		for (int j = 1; j < UN->YSize() - 1; ++j) {
+			for (int k = 1; k < UN->ZSize() - 1; ++k) {
+				UNPlusOne->Value(1, j, k) = 0;
+			}
+		}
+	}
+
+	if (coords[0] == dimensions[0] - 1 ) {
+		for (int j = 1; j < UN->YSize() - 1; ++j) {
+			for (int k = 1; k < UN->ZSize() - 1; ++k) {
+				UNPlusOne->Value(UN->XSize()-2, j, k) = 0;
+			}
+		}
+	}
+}
+
 
 void Solver::calcUNPlusOne(double time) {
 
@@ -218,8 +328,6 @@ void Solver::calcUNPlusOne(double time) {
 				if (grid.IsPointOnBorder(i,j,k)) { 
 					UNPlusOne->Value(i,j,k) = 0;
 				} else {
-					Point point = grid.GetPointByIndex(i-1,j-1,k-1);
-
 					double laplasian = calcLaplasian(i,j,k, time, *UN);
 					UNPlusOne->Value(i,j,k) = approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );					
 				}
@@ -313,6 +421,20 @@ void Solver::Solve() {
 		// return;
 
 		calcUNPlusOne(time);
+
+#ifndef SIMPLE_BORDERS
+		updateBorderConditions(time);
+#endif
+
+
+  //   	for(int j = 0; j < comm_size; j++) {
+  //           if (rank == j) {
+		// 		UNPlusOne->Print(rank);
+  //           }
+  //           MPI_Barrier(MPI_COMM_WORLD);
+  //      	}
+		// // UNPlusOne->Print();
+		// return;
 
 	  //   if (i == 2) {
 	  //   	for(int j = 0; j < comm_size; j++) {

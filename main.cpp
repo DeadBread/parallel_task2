@@ -68,8 +68,8 @@ int main(int argc, char *argv[]) {
     MPI_Cart_coords(MPI_CART_COMM, rank, 3, coords);
 
     Point shift = create_shift(coords, dimensions, N);
-    Grid grid(N, local_sizes, shift, border);
-    Solver solver(grid, local_sizes, 0.002, 11, MPI_CART_COMM, rank);
+    Grid grid(N, shift, border);
+    Solver solver(grid, local_sizes, coords, dimensions, 0.002, 11, MPI_CART_COMM, rank);
 
     solver.Solve();
 

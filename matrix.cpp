@@ -57,12 +57,32 @@ Point Grid::GetPointByIndex(int x, int y, int z) const {
 	return result;
 }
 
-bool Grid::IsPointOnBorder(int x, int y, int z) const {
+bool Grid::IsPointOnBorder(int x, int y, int z, int* whichBorder) const {
 	const Point point = GetPointByIndex(x, y, z);
-	return point.x == 0 || point.y == 0 || point.z == 0 ||
-			point.x == borders.x ||
-			point.y == borders.y ||
-			point.z == borders.z;
+	int xb = 0; 
+	int yb = 0; 
+	int zb = 0;
+	xb = point.x == 0. ? -1 : 0;
+	xb = point.x == borders.x ? 1 : 0;	
+
+	yb = point.y == 0. ? -1 : 0;
+	yb = point.y == borders.y ? 1 : 0;
+
+	zb = point.z == 0. ? -1 : 0;
+	zb = point.z == borders.z ? 1 : 0;
+
+	if (xb == 0 && yb == 0 && zb == 0) {
+		return false;
+	}
+
+	// point.Print(0);
+
+	if (whichBorder != 0) {
+		whichBorder[0] = xb;
+		whichBorder[1] = yb;
+		whichBorder[2] = zb;
+	}
+	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -77,6 +97,13 @@ void BorderMatrix::Print(int rank) {
 	}
 	cout << str.str() << endl;
 	// printf("%d\n", rank);
+}
+
+
+double& BorderMatrix::Value(int x, int y) {
+	int index = x * ySize + y;
+	assert(index < GetSize());
+	return data[index];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

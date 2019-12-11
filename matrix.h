@@ -24,7 +24,7 @@ struct Point
 class Grid
 {
 public:
-	Grid(int _N, int _local_sizes[], const Point& _shift, const Point& _borders):
+	Grid(int _N, const Point& _shift, const Point& _borders):
 		N(_N),
 		borders(_borders),
 		shift(_shift)
@@ -40,12 +40,11 @@ public:
 	double Yh() const { return borders.y / (N - 1); }
 	double Zh() const { return borders.z / (N - 1); }
 
-	bool IsPointOnBorder(int x, int y, int z) const;
+	bool IsPointOnBorder(int x, int y, int z, int* whichBorder = 0) const;
 
 	Point GetPointByIndex(int x, int y, int z) const;
 private:
 	int N;
-	int local_sizes[3];
 	Point borders;
 	Point shift;
 };
@@ -69,13 +68,19 @@ public:
 		return xSize * ySize; 
 	}
 
-	double& Value(int x, int y) {
-		int index = x * ySize + y;
-		assert(index < GetSize());
-		return data[index];
-	}
+	double& Value(int x, int y);
+
 	double GetValue(int x, int y) const {
 		return const_cast<BorderMatrix*>(this)->Value(x,y);
+	}
+
+	void Send(int to, const MPI_Comm& comm) {
+		MPI_Send(data, GetSize(), MPI_DOUBLE, to, 0, comm);
+	}
+
+	void Recv(int to, const MPI_Comm& comm) {
+		MPI_Status status;
+		MPI_Recv(data, GetSize(), MPI_DOUBLE, to, 0, comm, &status);
 	}
 
 	void Exchange(int from, int to, const MPI_Comm& comm) {
