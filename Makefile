@@ -1,6 +1,6 @@
 SHELL = /bin/sh
 CC=mpicxx
-CFLAGS= -c -Wall
+CFLAGS= -c -Wall -openmp
 MAIN=main.cpp
 SOLVER=solver.cpp 
 MATRIX=matrix.cpp

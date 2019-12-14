@@ -50,6 +50,7 @@ double Solver::getAnalyticalSolutionForPoint(const Point& point, double t) {
 
 void Solver::getAnalyticalSolution(double t, TDArray& result) {
 	// cout << "ysize=" << result.YSize() << endl;
+#pragma omp parallel for	
 	for (int i = 1; i < result.XSize() - 1; i++) {
 		for (int j = 1; j < result.XSize() - 1; j++) {
 			for (int k = 1; k < result.ZSize() - 1; k++) {
@@ -68,18 +69,8 @@ void Solver::getAnalyticalSolution(double t, TDArray& result) {
 double Solver::calcLaplasian(int x, int y, int z, double t, const TDArray& UnValues) {
 	double result = 0;
 
-// #ifdef SIMPLE_BORDERS
-	//SIMPLE BORDERS
-
 	double yRightIndex = y + 1;
 	double zRightIndex = z + 1;
-// #else
-// 	//For border conditions
-// 	double yRightIndex = y % (grid.GetN() - 1) + 1;
-// 	double zRightIndex = z % (grid.GetN() - 1) + 1;
-// #endif
-
-	// cout << "Hs" << grid.Xh() << " " << grid.Yh() << " " << grid.Zh() << endl;
 
 	double middlePart = 2*UnValues.GetValue(x, y, z);
 
@@ -110,6 +101,7 @@ void Solver::updateUNBorders() {
 	BorderMatrix ZDown(xs, ys);
 
 	//filling border matrices
+#pragma omp parallel for
 	for (int j = 1; j < UN->YSize() - 1; ++j) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
 			XUp.Value(j-1, k-1) = UN->Value(UN->XSize()-2, j, k);
@@ -117,6 +109,7 @@ void Solver::updateUNBorders() {
 		}
 	}
 
+#pragma omp parallel for
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
 			YUp.Value(i-1, k-1) = UN->Value(i, UN->YSize()-2, k);
@@ -124,6 +117,7 @@ void Solver::updateUNBorders() {
 		}
 	}
 
+#pragma omp parallel for
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int j = 1; j < UN->YSize() - 1; ++j) {
 			ZUp.Value(i-1, j-1) = UN->Value(i, j, UN->ZSize()-2);
@@ -159,6 +153,7 @@ void Solver::updateUNBorders() {
     ZUp.Exchange(from, to, comm);
 
 	//padding tensor
+#pragma omp parallel for
     for (int j = 1; j < UN->YSize() - 1; ++j) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
 			UN->Value(0, j, k) = XUp.Value(j-1, k-1);
@@ -166,6 +161,7 @@ void Solver::updateUNBorders() {
 		}
 	}
 
+#pragma omp parallel for
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int k = 1; k < UN->ZSize() - 1; ++k) {
 			UN->Value(i, 0, k) = YUp.Value(i-1, k-1);
@@ -173,6 +169,7 @@ void Solver::updateUNBorders() {
 		}
 	}
 
+#pragma omp parallel for
 	for (int i = 1; i < UN->XSize() - 1; ++i) {
 		for (int j = 1; j < UN->YSize() - 1; ++j) {
 			UN->Value(i, j, 0) = ZUp.Value(i-1, j-1);
@@ -184,19 +181,19 @@ void Solver::updateUNBorders() {
 void Solver::updateBorderConditions(double time) {
 	//y borders
 
+#ifndef SIMPLE_BORDERS
 	int xs = UNPlusOne->XSize() - 2;
 	int ys = UNPlusOne->YSize() - 2;
 	int zs = UNPlusOne->ZSize() - 2;
 
 	BorderMatrix YBorder(xs, zs);
-	// BorderMatrix YDown(xs, zs);
-
 	BorderMatrix ZBorder(xs, ys);
-	// BorderMatrix ZDown(xs, ys);
 
 	//lower border
 	if (coords[1] == 0) {
 		//sending second y-slice
+
+#pragma omp parallel for
 		for (int i = 1; i < UN->XSize() - 1; ++i) {
 			for (int k = 1; k < UN->ZSize() - 1; ++k) {
 				YBorder.Value(i-1, k-1) = UN->Value(i, 2, k);
@@ -212,6 +209,8 @@ void Solver::updateBorderConditions(double time) {
 		//recieving I[:,0,:] = U[:,n,:]
 		YBorder.Recv(upper_border_rank, comm);
 
+
+#pragma omp parallel for
 		//filling in border
 		for (int i = 1; i < UN->XSize() - 1; ++i) {
 			for (int k = 1; k < UN->ZSize() - 1; ++k) {
@@ -228,6 +227,7 @@ void Solver::updateBorderConditions(double time) {
 
 		YBorder.Recv(lower_border_rank, comm);
 
+#pragma omp parallel for
 		for (int i = 1; i < UN->XSize() - 1; ++i) {
 			for (int k = 1; k < UN->ZSize() - 1; ++k) {
 				UN->Value(i, UN->YSize() - 1, k) = YBorder.Value(i-1, k-1);
@@ -243,9 +243,10 @@ void Solver::updateBorderConditions(double time) {
 		YBorder.Send(lower_border_rank, comm);
 	}
 
-
 	//lower border
 	if (coords[2] == 0) {
+
+#pragma omp parallel for
 		//sending second y-slice
 		for (int i = 1; i < UN->XSize() - 1; ++i) {
 			for (int j = 1; j < UN->YSize() - 1; ++j) {
@@ -262,6 +263,7 @@ void Solver::updateBorderConditions(double time) {
 		//recieving I[:,0,:] = U[:,n,:]
 		ZBorder.Recv(upper_border_rank, comm);
 
+#pragma omp parallel for
 		//filling in border
 		for (int i = 1; i < UN->XSize() - 1; ++i) {
 			for (int j = 1; j < UN->YSize() - 1; ++j) {
@@ -278,6 +280,7 @@ void Solver::updateBorderConditions(double time) {
 
 		ZBorder.Recv(lower_border_rank, comm);
 
+#pragma omp parallel for
 		for (int i = 1; i < UN->XSize() - 1; ++i) {
 			for (int j = 1; j < UN->YSize() - 1; ++j) {
 				UN->Value(i, j, UN->ZSize() - 1) = ZBorder.Value(i-1, j-1);
@@ -293,9 +296,50 @@ void Solver::updateBorderConditions(double time) {
 		ZBorder.Send(lower_border_rank, comm);
 	}
 
+#else
+	//SIMPLE BORDERS
+	if (coords[2] == 0) {
+#pragma omp parallel for
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int j = 1; j < UN->YSize() - 1; ++j) {
+				UNPlusOne->Value(i, j, 1) = 0;
+			}
+		}
+	}
+
+	if (coords[2] == dimensions[2] - 1) {
+#pragma omp parallel for
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int j = 1; j < UN->YSize() - 1; ++j) {
+				UNPlusOne->Value(i, j, UN->ZSize()-2) = 0;
+			}
+		}
+	}
+
+	if (coords[1] == 0) {
+#pragma omp parallel for
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int k = 1; k < UN->ZSize() - 1; ++k) {
+				UNPlusOne->Value(i, 1, k) = 0;
+			}
+		}
+	}
+
+	if (coords[1] == dimensions[1] - 1 ) {
+#pragma omp parallel for
+		for (int i = 1; i < UN->XSize() - 1; ++i) {
+			for (int k = 1; k < UN->ZSize() - 1; ++k) {
+				UNPlusOne->Value(i, UN->YSize()-2, k) = 0;
+			}
+		}
+	}
+
+#endif
+
 	//setting X borders to zero
 
 	if (coords[0] == 0) {
+#pragma omp parallel for
 		for (int j = 1; j < UN->YSize() - 1; ++j) {
 			for (int k = 1; k < UN->ZSize() - 1; ++k) {
 				UNPlusOne->Value(1, j, k) = 0;
@@ -304,6 +348,7 @@ void Solver::updateBorderConditions(double time) {
 	}
 
 	if (coords[0] == dimensions[0] - 1 ) {
+#pragma omp parallel for
 		for (int j = 1; j < UN->YSize() - 1; ++j) {
 			for (int k = 1; k < UN->ZSize() - 1; ++k) {
 				UNPlusOne->Value(UN->XSize()-2, j, k) = 0;
@@ -314,17 +359,11 @@ void Solver::updateBorderConditions(double time) {
 
 
 void Solver::calcUNPlusOne(double time) {
-
-#ifdef SIMPLE_BORDERS
-
-	//SIMPLE BORDERS
+#pragma omp parallel for
 	for (int i = 1; i < UNPlusOne->XSize() - 1; i++) {
 		// For border conditions laplacian is calculated in a specific way
 		for (int j = 1; j < UNPlusOne->YSize() - 1; j++) {
 			for (int k = 1; k < UNPlusOne->ZSize() - 1; k++) {
-				// cout << "cbefore laplasian " << i << " " << j << " " << k << endl;
-				//simple borders
-
 				if (grid.IsPointOnBorder(i,j,k)) { 
 					UNPlusOne->Value(i,j,k) = 0;
 				} else {
@@ -334,37 +373,6 @@ void Solver::calcUNPlusOne(double time) {
 			}
 		}
 	}
-#else
-	// for (int i = 1; i < UNPlusOne->XSize() - 1; i++) {
-	// 	// For border conditions laplacian is calculated in a specific way
-	// 	for (int j = 1; j < UNPlusOne->YSize(); j++) {
-	// 		for (int k = 1; k < UNPlusOne->ZSize(); k++) {
-	// 			// cout << "cbefore laplasian " << i << " " << j << " " << k << endl;
-
-	// 			double laplasian = calcLaplasian(i, j, k, time, *UN);
-	// 			UNPlusOne->Value(i,j,k) = approximateFunctionInPoint(laplasian, UN->GetValue(i,j,k), UNMinOne->GetValue(i,j,k) );
-	// 		}
-	// 	}
-	// }
-	// Border conditions for X will be satisfied already as we set memory to zeros
-
-	//ONLY WRITTER FOR SEQUENTIAL CASE!
-
-	//Border conditions for Y
-	// for (double i = 1; i < UNPlusOne->XSize() - 1; i++) {
-	// 	for (double k = 1; k < UNPlusOne->ZSize() - 1; k++) {	
-	// 		UNPlusOne->Value(i, 0, k) = UNPlusOne->GetValue(i, grid.GetN() - 1, k );
-	// 	}
-	// }
-
-	// //Border conditions for Z
-	// for (double i = 1; i < grid.GetN() - 1; i++) {
-	// 	//This time Y axis is complete, so we go all the way through this axis
-	// 	for (double j = 1; j < grid.GetN(); j++) {	
-	// 		UNPlusOne->Value(i, j, 0) = UNPlusOne->GetValue(i, j, grid.GetN() - 1 );
-	// 	}
-	// }
-#endif
 }
 
 void Solver::printAndCheck(double time) {
@@ -393,61 +401,21 @@ void Solver::Solve() {
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
 	assert(TSteps > 2);
-	//Calculating analytical solution for first two time steps
 	getAnalyticalSolution(0, *UNMinOne);
 	getAnalyticalSolution(tau, *UN);
 
-	// UNMinOne->Print(rank);
-
-	// for(int j = 0; j < comm_size; j++) {
- //        if (rank == j) {
-	// 		UNMinOne->Print(rank);
- //        }
- //        MPI_Barrier(MPI_COMM_WORLD);
- //   	}
-	// return;
-
-	// printf("tau=%f\n", tau);
-
-	// cout << "starting approximation";
 
 	for(int i = 2; i < TSteps; i++) {
 
 		double time = tau * i;
-		// Step
 
 		updateUNBorders();
-
-		// return;
 
 		calcUNPlusOne(time);
 
 #ifndef SIMPLE_BORDERS
 		updateBorderConditions(time);
 #endif
-
-
-  //   	for(int j = 0; j < comm_size; j++) {
-  //           if (rank == j) {
-		// 		UNPlusOne->Print(rank);
-  //           }
-  //           MPI_Barrier(MPI_COMM_WORLD);
-  //      	}
-		// // UNPlusOne->Print();
-		// return;
-
-	  //   if (i == 2) {
-	  //   	for(int j = 0; j < comm_size; j++) {
-	  //           if (rank == j) {
-			// 		UNPlusOne->Print(rank);
-	  //           }
-	  //           MPI_Barrier(MPI_COMM_WORLD);
-	  //      	}
-
-			// return;
-	  //   }
-
-
 
 		// Print and check
 		printAndCheck(time);

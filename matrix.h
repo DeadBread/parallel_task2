@@ -40,7 +40,7 @@ public:
 	double Yh() const { return borders.y / (N - 1); }
 	double Zh() const { return borders.z / (N - 1); }
 
-	bool IsPointOnBorder(int x, int y, int z, int* whichBorder = 0) const;
+	bool IsPointOnBorder(int x, int y, int z) const;
 
 	Point GetPointByIndex(int x, int y, int z) const;
 private:
