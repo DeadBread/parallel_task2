@@ -1,13 +1,13 @@
 #include <cassert>
 #include <cstring>
 #include <string>
-#include <cstdlib>
+#include <iostream>
+//#include <cstdlib>
+#include <cmath>
 #include <stdlib.h>
 #include <sstream>
 
 #include "matrix.h"
-
-using namespace std;
 
 //Local coordinates, blobal point!
 Point Grid::GetPointByIndex(int x, int y, int z) const {
@@ -51,7 +51,7 @@ Point Grid::GetPointByIndex(int x, int y, int z) const {
 	Point result = {x * Xh(), y * Yh(), z*Zh()};
 	// result += shift;
 
-	// cout << "rank " << rank  << " " << x << " " << y << " " << z << endl;	
+	// std::cout << "rank " << rank  << " " << x << " " << y << " " << z << std::endl;	
 
 	// result.Print(rank);
 	return result;
@@ -67,15 +67,15 @@ bool Grid::IsPointOnBorder(int x, int y, int z) const {
 ////////////////////////////////////////////////////////////////////////////////////
 
 void BorderMatrix::Print(int rank) {
-	stringstream str;
-	str << "rank " << rank << endl;
+	std::stringstream str;
+	str << "rank " << rank << std::endl;
 	for (int i = 0; i < xSize; i++) {
 		for (int j = 0; j < ySize; j++) {
 			str << GetValue(i, j) << " ";
 		}
 		str << "\n";
 	}
-	cout << str.str() << endl;
+	std::cout << str.str() << std::endl;
 	// printf("%d\n", rank);
 }
 
@@ -99,8 +99,8 @@ TDArray::TDArray(int local_sizes[]) :
 
 void TDArray::Print(int rank) const {
 	// char str[3000];
-	stringstream str;
-	str << "rank " << rank << endl;
+	std::stringstream str;
+	str << "rank " << rank << std::endl;
 	for (int i = 0; i < xSize; i++) {
 		// For border conditions laplacian is calculated in a specific way
 		for (int j = 0; j < ySize; j++) {
@@ -111,7 +111,7 @@ void TDArray::Print(int rank) const {
 		}
 		str << "\n";
 	}
-	std::cout << str.str() << endl;
+	std::cout << str.str() << std::endl;
 	// printf("%d\n", rank);
 }
 
@@ -142,10 +142,10 @@ void TDArray::Subtract(const TDArray& matrix) {
 }
 
 double TDArray::GetAbsMax() const {
-	double max = abs(data[0]);
+	double max = fabs(data[0]);
 	for(int i = 1; i < GetSize(); i++){
-		if (abs(data[i]) > max) {
-			max = abs(data[i]);
+		if (fabs(data[i]) > max) {
+			max = fabs(data[i]);
 		}
 	}
 	return max;

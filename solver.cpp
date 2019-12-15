@@ -6,7 +6,7 @@
 
 using namespace std;
 
-// #define SIMPLE_BORDERS
+ #define SIMPLE_BORDERS
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -69,8 +69,8 @@ void Solver::getAnalyticalSolution(double t, TDArray& result) {
 double Solver::calcLaplasian(int x, int y, int z, double t, const TDArray& UnValues) {
 	double result = 0;
 
-	double yRightIndex = y + 1;
-	double zRightIndex = z + 1;
+	int yRightIndex = y + 1;
+	int zRightIndex = z + 1;
 
 	double middlePart = 2*UnValues.GetValue(x, y, z);
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include <mpi.h>
+#include <cstring>
 
 struct Point
 {

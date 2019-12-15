@@ -1,6 +1,6 @@
 SHELL = /bin/sh
-CC=mpicxx
-CFLAGS= -c -Wall -openmp
+CC=mpixlcxx_r
+CFLAGS= -c -qsmp=omp
 MAIN=main.cpp
 SOLVER=solver.cpp 
 MATRIX=matrix.cpp
@@ -12,7 +12,7 @@ EXECUTABLE=Solver
 
 
 all: $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(EXECUTABLE)
+	$(CC) -qsmp=omp $(OBJECTS) -o $(EXECUTABLE)
 
 solver.o: $(SOLVER)
 	$(CC) $(CFLAGS) $(SOLVER) -o $@
