@@ -25,9 +25,9 @@ Point Grid::GetPointByIndex(int x, int y, int z) const {
 
 
 	//shifting
-	x += shift.x;
-	y += shift.y;
-	z += shift.z;
+	x += shift[0];
+	y += shift[1];
+	z += shift[2];
 
 	// printf("x=%d, y=%d, z=%d; shift=%f, %f, %f\n", x, y, z, shift.x, shift.y, shift.z);
 
@@ -94,7 +94,8 @@ TDArray::TDArray(int local_sizes[]) :
 	zSize(local_sizes[2])
 {
 	//this should fill data with zeros, right?
-	data = new double[GetSize()]();
+	data = new double[GetSize()];
+	Clean();
 }
 
 void TDArray::Print(int rank, const MPI_Comm& comm) const {

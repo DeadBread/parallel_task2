@@ -2,47 +2,17 @@
 #include "solver.h"
 #include <mpi.h>
 
-// Point create_shift(int rank, int dims[], int N) {
-// 	Point shift={0,0,0};
-// 	double Xh = 1.*N/dims[0];
-// 	double Yh = 1.*N/dims[1];
-// 	double Zh = 1.*N/dims[2];
-
-// 	if (rank == 0){
-// 		printf("dimensions - %d, %d, %d", dims[0], dims[1], dims[2]);
-// 	}
-
-// 	while(rank > 0) {
-// 		if (rank - dims[1]*dims[2] >= 0) {
-// 			rank -= dims[1]*dims[2];
-// 			shift.x += Xh;
-// 		} else if (rank - dims[2] >= 0) {
-// 			rank -= dims[2];
-// 			shift.y += Yh;			
-// 		} else {
-// 			rank -= 1;
-// 			shift.z += Zh;
-// 		}
-// 	}
-// 	return shift;
-// }
-
-
-// Point create_shift(int coords[], int dims[], int N) {
-// 	Point shift={0,0,0};
-        
-// 	int rank = -1;
-//    	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+void create_shift(int coords[], int dims[], int N, int shift[]) {
+	int rank = -1;
+   	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	
-// 	if (rank == 0)
-// 		printf("dimensions - %d, %d, %d\n", dims[0], dims[1], dims[2]);
+	if (rank == 0)
+		printf("dimensions - %d, %d, %d\n", dims[0], dims[1], dims[2]);
 
-// 	shift.x = 1.*N/dims[0] * coords[0];
-// 	shift.y = 1.*N/dims[1] * coords[1];
-// 	shift.z = 1.*N/dims[2] * coords[2];
-// 	shift.Print(rank);
-// 	return shift;
-// }
+	shift[0] = 1.*N/dims[0] * coords[0];
+	shift[1]= 1.*N/dims[1] * coords[1];
+	shift[2] = 1.*N/dims[2] * coords[2];
+}
 
 
 int main(int argc, char *argv[]) {
@@ -58,7 +28,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 // 	printf("rank %d comm_size %d\n", rank, comm_size);
 	
-	int dimensions[3] = {0,0,0};
+	int dimensions[3] = {4,2,1};
     int coords[] = {0,0,0};
 	MPI_Dims_create(comm_size, 3, dimensions);
 
@@ -73,7 +43,8 @@ int main(int argc, char *argv[]) {
     MPI_Cart_create(MPI_COMM_WORLD, 3, dimensions, periods, true, &MPI_CART_COMM);
     MPI_Cart_coords(MPI_CART_COMM, rank, 3, coords);
 
-    Point shift = create_shift(coords, dimensions, N);
+    int shift[3] = {};
+    create_shift(coords, dimensions, N, shift);
     Grid grid(N, shift, border);
     Solver solver(grid, local_sizes, coords, dimensions, 0.002, 11, MPI_CART_COMM, rank);
 

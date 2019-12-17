@@ -25,11 +25,14 @@ struct Point
 class Grid
 {
 public:
-	Grid(int _N, const Point& _shift, const Point& _borders):
+	Grid(int _N, const int _shift[], const Point& _borders):
 		N(_N),
-		borders(_borders),
-		shift(_shift)
-	{}
+		borders(_borders)
+	{
+		shift[0] = _shift[0];
+		shift[1] = _shift[1];
+		shift[2] = _shift[2];
+	}
 
 	int GetN() const { return N; }
 
@@ -46,8 +49,8 @@ public:
 	Point GetPointByIndex(int x, int y, int z) const;
 private:
 	int N;
+	int shift[3];
 	Point borders;
-	Point shift;
 };
 
 class BorderMatrix {

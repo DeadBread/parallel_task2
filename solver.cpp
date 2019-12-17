@@ -152,6 +152,16 @@ void Solver::updateUNBorders() {
 	ss << "ZUp, from " << from << " to" << to<< endl;
     ZUp.Exchange(from, to, comm);
 
+
+            int comm_size = -1;                                                                  
+        MPI_Comm_size(MPI_COMM_WORLD, &comm_size);                                                              
+        for(int j = 0; j < comm_size; j++) {                                                                     
+                if (rank == j) {                                                                  
+                        std::cout << ss.str() << std::endl;                                                       
+                }                                                                                 
+                MPI_Barrier(comm);                                                                
+        }
+
 	//padding tensor
 #pragma omp parallel for
     for (int j = 1; j < UN->YSize() - 1; ++j) {
@@ -353,7 +363,7 @@ void Solver::updateBorderConditions(double time) {
 		}
 	}
 
-	printf("updated borders\n");
+	// printf("updated borders\n");
 #endif
 
 	//setting X borders to zero
@@ -433,19 +443,22 @@ void Solver::Solve() {
 
 		updateUNBorders();
 
-		calcUNPlusOne(time);
-
-// #ifndef SIMPLE_BORDERS
-		updateBorderConditions(time);
-// #endif
-
-		if (i == 2)
+				if (i == 2) {
 			for(int j = 0; j < comm_size; j++) {
 		        if (rank == j) {
 					UN->Print(rank, comm);
 		        }
 		        MPI_Barrier(comm);
 		   	}
+		   	return;
+		}
+
+		calcUNPlusOne(time);
+
+// #ifndef SIMPLE_BORDERS
+		updateBorderConditions(time);
+// #endif
+
 
 		// Print and check
 		printAndCheck(time);
