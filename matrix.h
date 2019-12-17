@@ -76,7 +76,7 @@ public:
 	}
 
 	void Send(int to, const MPI_Comm& comm) {
-		MPI_Send(data, GetSize(), MPI_DOUBLE, to, 0, comm);
+		MPI_Ssend(data, GetSize(), MPI_DOUBLE, to, 0, comm);
 	}
 
 	void Recv(int to, const MPI_Comm& comm) {
@@ -125,7 +125,7 @@ public:
 	double GetAbsMax() const;
 	double GetMean() const;
 
-	void Print(int rank) const;
+	void Print(int rank, const MPI_Comm& comm) const;
 
 	void Clean();
 

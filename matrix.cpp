@@ -97,10 +97,17 @@ TDArray::TDArray(int local_sizes[]) :
 	data = new double[GetSize()]();
 }
 
-void TDArray::Print(int rank) const {
+void TDArray::Print(int rank, const MPI_Comm& comm) const {
 	// char str[3000];
 	std::stringstream str;
 	str << "rank " << rank << std::endl;
+    int coords[3] = {};
+    MPI_Cart_coords(comm, rank, 3, coords);
+    str << "coords ";
+    for (int i = 0; i < 3; i++) {
+        str << coords[i] << " ";
+    }
+    str << std::endl;
 	for (int i = 0; i < xSize; i++) {
 		// For border conditions laplacian is calculated in a specific way
 		for (int j = 0; j < ySize; j++) {

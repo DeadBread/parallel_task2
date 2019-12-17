@@ -28,16 +28,21 @@
 // }
 
 
-Point create_shift(int coords[], int dims[], int N) {
-	Point shift={0,0,0};
-	// if (coords[0] == 0)	
-	// 	printf("dimensions - %d, %d, %d\n", dims[0], dims[1], dims[2]);
+// Point create_shift(int coords[], int dims[], int N) {
+// 	Point shift={0,0,0};
+        
+// 	int rank = -1;
+//    	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	
+// 	if (rank == 0)
+// 		printf("dimensions - %d, %d, %d\n", dims[0], dims[1], dims[2]);
 
-	shift.x = 1.*N/dims[0] * coords[0];
-	shift.y = 1.*N/dims[1] * coords[1];
-	shift.z = 1.*N/dims[2] * coords[2];
-	return shift;
-}
+// 	shift.x = 1.*N/dims[0] * coords[0];
+// 	shift.y = 1.*N/dims[1] * coords[1];
+// 	shift.z = 1.*N/dims[2] * coords[2];
+// 	shift.Print(rank);
+// 	return shift;
+// }
 
 
 int main(int argc, char *argv[]) {
@@ -51,6 +56,7 @@ int main(int argc, char *argv[]) {
 	MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+// 	printf("rank %d comm_size %d\n", rank, comm_size);
 	
 	int dimensions[3] = {0,0,0};
     int coords[] = {0,0,0};
@@ -76,7 +82,7 @@ int main(int argc, char *argv[]) {
 	TDArray array(local_sizes);
 
     MPI_Finalize();
-	// Solver solver(grid, 0.002, 20);
-	// solver.Solve();
+	
+	
 	return 0;
 }

@@ -6,7 +6,7 @@
 
 using namespace std;
 
- #define SIMPLE_BORDERS
+#define SIMPLE_BORDERS
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -52,7 +52,7 @@ void Solver::getAnalyticalSolution(double t, TDArray& result) {
 	// cout << "ysize=" << result.YSize() << endl;
 #pragma omp parallel for	
 	for (int i = 1; i < result.XSize() - 1; i++) {
-		for (int j = 1; j < result.XSize() - 1; j++) {
+		for (int j = 1; j < result.YSize() - 1; j++) {
 			for (int k = 1; k < result.ZSize() - 1; k++) {
 				// cout << "rank " << rank << ", " << i << " " << j << " " << k <<endl;
 				Point point = grid.GetPointByIndex(i, j, k);
@@ -180,7 +180,7 @@ void Solver::updateUNBorders() {
 
 void Solver::updateBorderConditions(double time) {
 	//y borders
-
+	MPI_Barrier(comm);
 #ifndef SIMPLE_BORDERS
 	int xs = UNPlusOne->XSize() - 2;
 	int ys = UNPlusOne->YSize() - 2;
@@ -190,7 +190,7 @@ void Solver::updateBorderConditions(double time) {
 	BorderMatrix ZBorder(xs, ys);
 
 	//lower border
-	if (coords[1] == 0) {
+	if (coords[1] == 0 && dimensions[1] > 1) {
 		//sending second y-slice
 
 #pragma omp parallel for
@@ -198,16 +198,20 @@ void Solver::updateBorderConditions(double time) {
 			for (int k = 1; k < UN->ZSize() - 1; ++k) {
 				YBorder.Value(i-1, k-1) = UN->Value(i, 2, k);
 			}
-		}
+		}	
 		int dst_coords[3] = {coords[0], dimensions[1] - 1, coords[2]};
 		int upper_border_rank = -1;
 		MPI_Cart_rank(comm, dst_coords, &upper_border_rank);
 
+//		printf("sendY - to %d, from %d\n",upper_border_rank, rank);
 		//sending U[:,1,:]
+		assert(upper_border_rank != rank);
 		YBorder.Send(upper_border_rank, comm);
 
+//		printf("after sendY - recieving back - from %d, to %d\n",upper_border_rank, rank);
 		//recieving I[:,0,:] = U[:,n,:]
 		YBorder.Recv(upper_border_rank, comm);
+//		printf("recieved backY - done - %d, %d\n",upper_border_rank, rank);
 
 
 #pragma omp parallel for
@@ -220,13 +224,16 @@ void Solver::updateBorderConditions(double time) {
 	}
 
 	//upper border
-	if (coords[1] == dimensions[1] - 1) {
+	if (coords[1] == dimensions[1] - 1 && dimensions[1] > 1) {
 		int dst_coords[3] = {coords[0], 0, coords[2]};
 		int lower_border_rank = -1;
 		MPI_Cart_rank(comm, dst_coords, &lower_border_rank);
 
+		assert(lower_border_rank != rank);
+//		printf("recvY - from %d, to %d\n",lower_border_rank, rank);
 		YBorder.Recv(lower_border_rank, comm);
 
+//		printf("recvY Done - from %d, to %d\n",lower_border_rank, rank);
 #pragma omp parallel for
 		for (int i = 1; i < UN->XSize() - 1; ++i) {
 			for (int k = 1; k < UN->ZSize() - 1; ++k) {
@@ -240,11 +247,14 @@ void Solver::updateBorderConditions(double time) {
 			}
 		}
 
+//		printf("sendBackY - %d, %d\n",lower_border_rank, rank);
 		YBorder.Send(lower_border_rank, comm);
+//		printf("sendBackY -done - %d, %d\n",lower_border_rank, rank);
 	}
 
+	MPI_Barrier(comm);
 	//lower border
-	if (coords[2] == 0) {
+	if (coords[2] == 0 && dimensions[2] > 1) {
 
 #pragma omp parallel for
 		//sending second y-slice
@@ -257,11 +267,15 @@ void Solver::updateBorderConditions(double time) {
 		int upper_border_rank = -1;
 		MPI_Cart_rank(comm, dst_coords, &upper_border_rank);
 
+		assert(upper_border_rank != rank);
+//		printf("sndZ - %d, %d\n",upper_border_rank, rank);
 		//sending U[:,1,:]
 		ZBorder.Send(upper_border_rank, comm);
 
+//		printf("sndZ - done recvZ back - %d, %d\n",upper_border_rank, rank);
 		//recieving I[:,0,:] = U[:,n,:]
 		ZBorder.Recv(upper_border_rank, comm);
+//		printf("recvZ back - done - %d, %d\n",upper_border_rank, rank);
 
 #pragma omp parallel for
 		//filling in border
@@ -273,12 +287,15 @@ void Solver::updateBorderConditions(double time) {
 	}
 
 	//upper border
-	if (coords[2] == dimensions[2] - 1) {
+	if (coords[2] == dimensions[2] - 1 && dimensions[2] > 1) {
 		int dst_coords[3] = {coords[0],coords[1], 0};
 		int lower_border_rank = -1;
 		MPI_Cart_rank(comm, dst_coords, &lower_border_rank);
 
+		assert(lower_border_rank != rank);
+//		printf("recvZ - %d, %d\n",lower_border_rank, rank);
 		ZBorder.Recv(lower_border_rank, comm);
+//		printf("recvZ - done - %d, %d\n",lower_border_rank, rank);
 
 #pragma omp parallel for
 		for (int i = 1; i < UN->XSize() - 1; ++i) {
@@ -292,10 +309,12 @@ void Solver::updateBorderConditions(double time) {
 				ZBorder.Value(i-1, j-1) = UNPlusOne->GetValue(i,j,k);
 			}
 		}
+//		printf("sendZ back - %d, %d\n",lower_border_rank, rank);
 
 		ZBorder.Send(lower_border_rank, comm);
+//		printf("sendZ back -done - %d, %d\n",lower_border_rank, rank);
 	}
-
+	MPI_Barrier(comm);
 #else
 	//SIMPLE BORDERS
 	if (coords[2] == 0) {
@@ -334,6 +353,7 @@ void Solver::updateBorderConditions(double time) {
 		}
 	}
 
+	printf("updated borders\n");
 #endif
 
 	//setting X borders to zero
@@ -400,11 +420,13 @@ void Solver::Solve() {
     int comm_size = -1;
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
+
 	assert(TSteps > 2);
 	getAnalyticalSolution(0, *UNMinOne);
 	getAnalyticalSolution(tau, *UN);
 
-
+	double t1, t2;
+	t1 = MPI_Wtime();
 	for(int i = 2; i < TSteps; i++) {
 
 		double time = tau * i;
@@ -413,9 +435,17 @@ void Solver::Solve() {
 
 		calcUNPlusOne(time);
 
-#ifndef SIMPLE_BORDERS
+// #ifndef SIMPLE_BORDERS
 		updateBorderConditions(time);
-#endif
+// #endif
+
+		if (i == 2)
+			for(int j = 0; j < comm_size; j++) {
+		        if (rank == j) {
+					UN->Print(rank, comm);
+		        }
+		        MPI_Barrier(comm);
+		   	}
 
 		// Print and check
 		printAndCheck(time);
@@ -426,5 +456,9 @@ void Solver::Solve() {
 		UN = UNPlusOne;
 		UNPlusOne = tmp;
 		UNPlusOne->Clean();
+	}
+	t2 = MPI_Wtime();
+	if (rank == 0) {
+		printf("time passed %f\n", t2 - t1);
 	}
 }
