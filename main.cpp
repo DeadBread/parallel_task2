@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 // 	printf("rank %d comm_size %d\n", rank, comm_size);
 	
-	int dimensions[3] = {4,2,1};
+	int dimensions[3] = {0,0,0};
     int coords[] = {0,0,0};
 	MPI_Dims_create(comm_size, 3, dimensions);
 
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 	int periods[3] = {0,0,0};
 	MPI_Comm MPI_CART_COMM;
 
-    MPI_Cart_create(MPI_COMM_WORLD, 3, dimensions, periods, true, &MPI_CART_COMM);
+    MPI_Cart_create(MPI_COMM_WORLD, 3, dimensions, periods, false, &MPI_CART_COMM);
     MPI_Cart_coords(MPI_CART_COMM, rank, 3, coords);
 
     int shift[3] = {};

@@ -84,6 +84,35 @@ double Solver::approximateFunctionInPoint(double laplasian, double UNValue, doub
 	return 2 * UNValue - UNMinusOneValue + pow(tau, 2) * laplasian;
 }
 
+void Solver::shift(int axis, int direction, int& from, int& to ) {
+	int to_coords[3] = {};
+	int from_coords[3] = {};
+	for (int i = 0; i < 3; i++) {
+
+		to_coords[i] = from_coords[i] = coords[i];
+		if (i == axis) {
+			// shifting towards gived direction
+			to_coords[i] += direction;
+			from_coords[i] -= direction;
+		}
+	}
+
+	//checking borders
+	if (to_coords[axis] < 0 || to_coords[axis] >= dimensions[axis]) {
+		to = MPI_PROC_NULL;
+	} else {
+		MPI_Cart_rank(comm, to_coords, &to);
+	}
+
+		//checking borders
+	if (from_coords[axis] < 0 || from_coords[axis] >= dimensions[axis]) {
+		from = MPI_PROC_NULL;
+	} else {
+		MPI_Cart_rank(comm, from_coords, &from);
+	}
+}
+
+
 //ineffective, might redo later
 void Solver::updateUNBorders() {
 	// not passing border elements
@@ -131,36 +160,43 @@ void Solver::updateUNBorders() {
 	stringstream ss;
 	ss<<rank << endl;
 
-	MPI_Cart_shift(comm, 0, -1, &from, &to);
-	ss << "XDown, from " << from << "to" << to << endl;
+	// MPI_Cart_shift(comm, 0, -1, from, to);
+	shift(0, -1, from, to);
+
+	//cout  << rank << " "<< "XDown, from " << from << "to" << to << endl;
     XDown.Exchange(from, to, comm);
-    MPI_Cart_shift(comm, 0, 1, &from, &to);
-	ss << "XUp, from " << from << " to" << to<< endl;
+    // MPI_Cart_shift(comm, 0, 1, &from, &to);
+    shift(0, 1, from, to);
+	//cout  << rank << " "<< "XUp, from " << from << " to" << to<< endl;
     XUp.Exchange(from, to, comm);
 
-    MPI_Cart_shift(comm, 1, -1, &from, &to);
-	ss << "YDown, from " << from << "to" << to << endl;
+    // MPI_Cart_shift(comm, 1, -1, from, to);
+    shift(1, -1, from, to);
+	//cout  << rank << " "<< "YDown, from " << from << "to" << to << endl;
     YDown.Exchange(from, to, comm);
-    MPI_Cart_shift(comm, 1, 1, &from, &to);
-	ss << "YUp, from " << from << " to" << to<< endl;
+    // MPI_Cart_shift(comm, 1, 1, from, to);
+    shift(1, 1, from, to);
+	//cout << rank << " " << "YUp, from " << from << " to" << to<< endl;
     YUp.Exchange(from, to, comm);
 
-    MPI_Cart_shift(comm, 2, -1, &from, &to);
-	ss << "ZDown, from " << from << "to" << to << endl;
+    // MPI_Cart_shift(comm, 2, -1, from, to);
+    shift(2, -1, from, to);
+	//cout  << rank << " "<< "ZDown, from " << from << "to" << to << endl;
     ZDown.Exchange(from, to, comm);
-    MPI_Cart_shift(comm, 2, 1, &from, &to);
-	ss << "ZUp, from " << from << " to" << to<< endl;
+    // MPI_Cart_shift(comm, 2, 1, from, to);
+    shift(2, 1, from, to);
+	//cout << rank << " " << "ZUp, from " << from << " to" << to<< endl;
     ZUp.Exchange(from, to, comm);
 
 
-            int comm_size = -1;                                                                  
-        MPI_Comm_size(MPI_COMM_WORLD, &comm_size);                                                              
-        for(int j = 0; j < comm_size; j++) {                                                                     
-                if (rank == j) {                                                                  
-                        std::cout << ss.str() << std::endl;                                                       
-                }                                                                                 
-                MPI_Barrier(comm);                                                                
-        }
+    // int comm_size = -1;                                                                  
+    // MPI_Comm_size(MPI_COMM_WORLD, &comm_size);                                                              
+    // for(int j = 0; j < comm_size; j++) {                                                                     
+    //         if (rank == j) {                                                                  
+    //                 std::cout << ss.str() << std::endl;                                                       
+    //         }                                                                                 
+    //         MPI_Barrier(comm);                                                                
+    // }
 
 	//padding tensor
 #pragma omp parallel for
@@ -443,15 +479,15 @@ void Solver::Solve() {
 
 		updateUNBorders();
 
-				if (i == 2) {
-			for(int j = 0; j < comm_size; j++) {
-		        if (rank == j) {
-					UN->Print(rank, comm);
-		        }
-		        MPI_Barrier(comm);
-		   	}
-		   	return;
-		}
+		// if (i == 2) {
+		// 	for(int j = 0; j < comm_size; j++) {
+		//         if (rank == j) {
+		// 			UN->Print(rank, comm);
+		//         }
+		//         MPI_Barrier(comm);
+		//    	}
+		//    	return;
+		// }
 
 		calcUNPlusOne(time);
 

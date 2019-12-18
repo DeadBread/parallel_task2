@@ -31,6 +31,8 @@ private:
 
 	void createGrid();
 
+	void shift(int axis, int direction, int& from, int& to );
+
 	double getAnalyticalSolutionForPoint(const Point& point, double t);
 	void getAnalyticalSolution(double t, TDArray& result);
 
